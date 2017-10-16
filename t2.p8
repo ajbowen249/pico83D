@@ -72,12 +72,12 @@ end
 -- END MATH SUPPORT
 
 function project()
-    tanFov = abs(tan(camera.fov))
+    local tanFov = abs(tan(camera.fov/2))
     local nearPlaneW=tanFov*camera.near
     local farPlaneW=tanFov*camera.far
     local pixelScale=screenWidth/(nearPlaneW*2)
 
-    local perspectiveSF=(1/((farPlaneW-nearPlaneW)/(camera.far-camera.near)))
+    local perspectiveSF=(farPlaneW-nearPlaneW)/(camera.far-camera.near)
 
     local cameraXRot={
         {1,                 0,                    0,0},
@@ -101,11 +101,10 @@ function project()
     local cameraRot = multMat(cameraXRot, cameraYRot)
     cameraRot = multMat(cameraRot, cameraZRot)
 
-    centralOffset=(1/pixelScale)*(screenWidth/2)
     cameraTran={
-        (camera.loc[1]-centralOffset)*-1,
-        camera.loc[2],
-        (camera.loc[3]-centralOffset)*-1,
+        camera.loc[1]*-1,
+        camera.loc[2]*-1,
+        camera.loc[3]*-1,
     }
 
     local projectedModels={}
@@ -120,12 +119,20 @@ function project()
         for vi,vert in pairs(model.vertices) do
             -- translate relative to camera
             local vertex=add3131(cameraTran, vert)
+
             -- rotate relative to camera
             vertex=mult3144(vertex, cameraRot)
+
             -- perspective scaling
             local scaleFactor=vertex[2]*perspectiveSF
-            vertex[1]*=scaleFactor
-            vertex[3]*=scaleFactor
+            vertex[1]/=scaleFactor
+            vertex[3]/=scaleFactor
+
+            -- screeen-space projection
+            vertex[1]*=pixelScale
+            vertex[3]*=pixelScale
+            vertex[1]+=screenWidth/2
+            vertex[3]+=screenHeight/2
 
             projectedModel.vertices[vi]=vertex
         end
@@ -177,10 +184,10 @@ end
 models = {
     {
         vertices={
-            {0,10,5},
-            {10,10,10},
-            {10,10,0},
-            {10,20,0},
+            {-5,10,0},
+            {5,10,10},
+            {5,10,0},
+            {5,20,0},
         },
         faces={
             {1,2,3,10},
@@ -199,20 +206,22 @@ for i=2,1000,1 do
 end
 
 camera={
-    loc={-10,0,0},
+    loc={0,-15,5},
     rot={0,0,0},
     fov=60/360,
-    near=0.01,
+    near=1,
     far=100
 }
 
 function _update60()
-    camera.rot[3]+=.001
+    camera.rot[3] = (camera.rot[3] + 0.001) % 1
 end
 
 function _draw()
     cls()
     draw3D()
+    cursor(1,1)
+    print(camera.rot[3])
 end
 
 --draw3D()
