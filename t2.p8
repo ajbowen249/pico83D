@@ -131,13 +131,14 @@ function project()
         }
 
         local modelRot = makeRotationMatrix(model.rot)
+        local modelLoc = add3131(cameraTran, model.loc)
 
         for vi,vert in pairs(model.vertices) do
             -- rotate relative to model center
             local vertex=mult3144(vert, modelRot)
 
             -- translate relative to camera
-            vertex=add3131(cameraTran, vertex)
+            vertex=add3131(modelLoc, vertex)
 
             -- rotate relative to camera
             vertex=mult3144(vertex, cameraRot)
@@ -211,13 +212,40 @@ models = {
             {1,2,3,14},
             {3,4,1,15},
         },
-        loc={0,0,0},
+        loc={0,30,0},
+        rot={0,0,0}
+    },
+    {
+        vertices={
+            {-5,-5, 0},
+            {-5, 5, 0},
+            { 5, 5, 0},
+            { 5,-5, 0},
+            {-5,-5,10},
+            {-5, 5,10},
+            { 5, 5,10},
+            { 5,-5,10},
+        },
+        faces={
+            {1,2,3, 1},
+            {2,3,4, 2},
+            {5,6,7, 3},
+            {7,8,5, 4},
+            {1,5,8, 5},
+            {8,4,1, 6},
+            {6,5,1, 7},
+            {2,3,7, 8},
+            {6,2,3, 9},
+            {3,4,8,10},
+            {8,7,3,11},
+        },
+        loc={20,30,0},
         rot={0,0,0}
     }
 }
 
 camera={
-    loc={0,-30,5},
+    loc={0,0,5},
     rot={0,0,0},
     fov=60/360,
     near=1,
@@ -226,9 +254,30 @@ camera={
 
 
 function _update60()
-    models[1].rot[1] = (models[1].rot[1] + 0.01) % 1
-    models[1].rot[2] = (models[1].rot[2] + 0.01) % 1
-    models[1].rot[3] = (models[1].rot[3] + 0.01) % 1
+    models[1].rot[3]=(models[1].rot[3]+0.005)%1
+    models[2].rot[3]=(models[2].rot[3]+0.0025)%1
+
+    rotSpeed = .005
+    moveSpeed=.2
+
+    if btn(0) then
+        camera.rot[3] = (camera.rot[3]-rotSpeed%1)
+    end
+    if btn(1) then
+        camera.rot[3] = (camera.rot[3]+rotSpeed%1)
+    end
+    if btn(2) then
+        camera.loc[2]+=moveSpeed
+    end
+    if btn(3) then
+        camera.loc[2]-=moveSpeed
+    end
+    if btn(4) then
+        camera.loc[1]-=moveSpeed
+    end
+    if btn(5) then
+        camera.loc[1]+=moveSpeed
+    end
 end
 
 function _draw()
