@@ -106,7 +106,7 @@ function makeRotationMatrix(rotation)
 end
 
 function project()
-    local tanFov = abs(tan(camera.fov/2))
+    local tanFov=abs(tan(camera.fov/2))
     local nearPlaneW=tanFov*camera.near
     local farPlaneW=tanFov*camera.far
     local pixelScale=screenWidth/(nearPlaneW*2)
@@ -289,6 +289,8 @@ function _update60()
     models[1].rot[3]=(models[1].rot[3]+0.005)%1
     models[2].rot[3]=(models[2].rot[3]+0.0025)%1
 
+    local moveVector={0,0,0}
+
     rotSpeed = .005
     moveSpeed=.2
 
@@ -299,17 +301,20 @@ function _update60()
         camera.rot[3] = (camera.rot[3]+rotSpeed%1)
     end
     if btn(2) then
-        camera.loc[2]+=moveSpeed
+        moveVector[2]=moveSpeed
     end
     if btn(3) then
-        camera.loc[2]-=moveSpeed
+        moveVector[2]=moveSpeed*-1
     end
     if btn(4) then
-        camera.loc[1]-=moveSpeed
+        moveVector[1]=moveSpeed*-1
     end
     if btn(5) then
-        camera.loc[1]+=moveSpeed
+        moveVector[1]=moveSpeed
     end
+
+    local viewRot=makeRotationMatrix({0,0,camera.rot[3]*-1})    
+    camera.loc=add3131(camera.loc,mult3144(moveVector,viewRot))
 end
 
 function _draw()
