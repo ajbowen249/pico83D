@@ -75,7 +75,7 @@ function vetexVisible(vertex,cam)
     local leftRight = vertex[1]>0 and vertex[1]<=screenWidth
     local upDown = vertex[3]>0 and vertex[3]<=screenHeight
     local distance = vertex[2]>cam.near and vertex[3]<cam.far
-    
+
     return leftRight and upDown and distance
 end
 
@@ -159,12 +159,21 @@ function project()
 
         local faceI=1
         for fi,face in pairs(model.faces) do
-            -- Frustum culling
             local v1=projectedModel.vertices[face[1]]
             local v2=projectedModel.vertices[face[2]]
             local v3=projectedModel.vertices[face[3]]
 
-            if vetexVisible(v1,camera) or vetexVisible(v2,camera) or vetexVisible(v3,camera) then
+            -- Note:: Normals here are not really correct.
+            -- They are just being rotated with the rest of the model.
+            -- This does not take into account any perspective skewing
+            -- or, in the future, vertex transformations. This should
+            -- be good enough for back-face culling, though. The main
+            -- problem it has is flat planes facing cardinal directions.
+
+            local normal=mult3144(model.normals[fi],modelRot)
+            normal=mult3144(normal,cameraRot)
+
+            if normal[2] <= 0 and(vetexVisible(v1,camera) or vetexVisible(v2,camera) or vetexVisible(v3,camera)) then
                 projectedModel.faces[faceI]=face
                 faceI+=1
             end
@@ -212,6 +221,14 @@ models = {
             {1,2,3,14},
             {3,4,1,15},
         },
+        normals={
+            {-1, 0, 0,},
+            { 0, 1, 0,},
+            { 1, 0, 0,},
+            { 0,-1, 0,},
+            { 0, 0,-1,},
+            { 0, 0,-1,},
+        },
         loc={0,30,0},
         rot={0,0,0}
     },
@@ -227,17 +244,32 @@ models = {
             { 5,-5,10},
         },
         faces={
-            {1,2,3, 1},
-            {2,3,4, 2},
-            {5,6,7, 3},
-            {7,8,5, 4},
-            {1,5,8, 5},
-            {8,4,1, 6},
-            {6,5,1, 7},
-            {2,3,7, 8},
-            {6,2,3, 9},
-            {3,4,8,10},
-            {8,7,3,11},
+            {1,2,3, 1}, --bottom
+            {3,4,1, 2}, --
+            {5,6,7, 3}, --top
+            {7,8,5, 4}, --
+            {1,5,8, 5}, --front
+            {8,4,1, 6}, --
+            {6,5,1, 7}, --left
+            {1,2,6, 8}, --
+            {2,3,7, 9}, --back
+            {7,6,2,10}, --
+            {3,4,8,12}, --right
+            {8,7,3,12}, --
+        },
+        normals={
+            { 0, 0,-1},
+            { 0, 0,-1},
+            { 0, 0, 1},
+            { 0, 0, 1},
+            { 0,-1, 0},
+            { 0,-1, 0},
+            {-1, 0, 0},
+            {-1, 0, 0},
+            { 0, 1, 0},
+            { 0, 1, 0},
+            { 1, 0, 0},
+            { 1, 0, 0},
         },
         loc={20,30,0},
         rot={0,0,0}
@@ -245,7 +277,7 @@ models = {
 }
 
 camera={
-    loc={0,0,5},
+    loc={0,0,15},
     rot={0,0,0},
     fov=60/360,
     near=1,
