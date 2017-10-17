@@ -79,6 +79,32 @@ function vetexVisible(vertex,cam)
     return leftRight and upDown and distance
 end
 
+function makeRotationMatrix(rotation)
+    local xRot={
+        {1,               0,                  0,0},
+        {0,cos(rotation[1]),-1*sin(rotation[1]),0},
+        {0,sin(rotation[1]),   cos(rotation[1]),0},
+        {0,               0,                  0,1}
+    }
+    local yRot={
+        {   cos(rotation[2]),0,sin(rotation[2]),0},
+        {                  0,1,               0,0},
+        {-1*sin(rotation[2]),0,cos(rotation[2]),0},
+        {                  0,0,               0,1}
+    }
+    local zRot={
+        {cos(rotation[3]),-1*sin(rotation[3]),0,0},
+        {sin(rotation[3]),   cos(rotation[3]),0,0},
+        {               0,                  0,1,0},
+        {               0,                  0,0,1}
+    }
+
+    local rotationMat=multMat(xRot,yRot)
+    rotationMat=multMat(rotationMat,zRot)
+
+    return rotationMat
+end
+
 function project()
     local tanFov = abs(tan(camera.fov/2))
     local nearPlaneW=tanFov*camera.near
@@ -87,27 +113,7 @@ function project()
 
     local perspectiveSF=(farPlaneW-nearPlaneW)/(camera.far-camera.near)
 
-    local cameraXRot={
-        {1,                 0,                    0,0},
-        {0,cos(camera.rot[1]),-1*sin(camera.rot[1]),0},
-        {0,sin(camera.rot[1]),   cos(camera.rot[1]),0},
-        {0,                 0,                    0,1}
-    }
-    local cameraYRot={
-        {   cos(camera.rot[2]),0,sin(camera.rot[2]),0},
-        {                    0,1,                 0,0},
-        {-1*sin(camera.rot[2]),0,cos(camera.rot[2]),0},
-        {                    0,0,                 0,1}
-    }
-    local cameraZRot={
-        {cos(camera.rot[3]),-1*sin(camera.rot[3]),0,0},
-        {sin(camera.rot[3]),   cos(camera.rot[3]),0,0},
-        {                 0,                    0,1,0},
-        {                 0,                    0,0,1}
-    }
-
-    local cameraRot = multMat(cameraXRot, cameraYRot)
-    cameraRot = multMat(cameraRot, cameraZRot)
+    local cameraRot=makeRotationMatrix(camera.rot)
 
     cameraTran={
         camera.loc[1]*-1,
@@ -124,9 +130,14 @@ function project()
             faces={}
         }
 
+        local modelRot = makeRotationMatrix(model.rot)
+
         for vi,vert in pairs(model.vertices) do
+            -- rotate relative to model center
+            local vertex=mult3144(vert, modelRot)
+
             -- translate relative to camera
-            local vertex=add3131(cameraTran, vert)
+            vertex=add3131(cameraTran, vertex)
 
             -- rotate relative to camera
             vertex=mult3144(vertex, cameraRot)
@@ -186,44 +197,43 @@ end
 models = {
     {
         vertices={
-            {-5,10,0},
-            {5,10,10},
-            {5,10,0},
-            {5,20,0},
+            {-5,-5, 0},
+            {-5, 5, 0},
+            { 5, 5, 0},
+            { 5,-5, 0},
+            { 0, 0,10},
         },
         faces={
-            {1,2,3,10},
-            {2,3,4,11},
-            {3,4,1,12},
-        }
+            {1,5,2,10},
+            {2,5,3,11},
+            {3,5,4,12},
+            {4,5,1,13},
+            {1,2,3,14},
+            {3,4,1,15},
+        },
+        loc={0,0,0},
+        rot={0,0,0}
     }
 }
 
-for i=5,1000,1 do
-    models[1].vertices[i]=models[1].vertices[1]
-end
-
-for i=2,1000,1 do
-   --models[1].faces[i]=models[1].faces[1]
-end
-
 camera={
-    loc={0,-15,5},
+    loc={0,-30,5},
     rot={0,0,0},
     fov=60/360,
     near=1,
     far=100
 }
 
+
 function _update60()
-    camera.rot[3] = (camera.rot[3] + 0.001) % 1
+    models[1].rot[1] = (models[1].rot[1] + 0.01) % 1
+    models[1].rot[2] = (models[1].rot[2] + 0.01) % 1
+    models[1].rot[3] = (models[1].rot[3] + 0.01) % 1
 end
 
 function _draw()
     cls()
     draw3D()
-    cursor(1,1)
-    print(camera.rot[3])
 end
 
 --draw3D()
