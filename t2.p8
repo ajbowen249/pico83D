@@ -71,6 +71,14 @@ end
 
 -- END MATH SUPPORT
 
+function vetexVisible(vertex,cam)
+    local leftRight = vertex[1]>0 and vertex[1]<=screenWidth
+    local upDown = vertex[3]>0 and vertex[3]<=screenHeight
+    local distance = vertex[2]>cam.near and vertex[3]<cam.far
+    
+    return leftRight and upDown and distance
+end
+
 function project()
     local tanFov = abs(tan(camera.fov/2))
     local nearPlaneW=tanFov*camera.near
@@ -139,18 +147,12 @@ function project()
 
         local faceI=1
         for fi,face in pairs(model.faces) do
-            local y1=projectedModel.vertices[face[1]][2]
-            local y2=projectedModel.vertices[face[2]][2]
-            local y3=projectedModel.vertices[face[3]][2]
+            -- Frustum culling
+            local v1=projectedModel.vertices[face[1]]
+            local v2=projectedModel.vertices[face[2]]
+            local v3=projectedModel.vertices[face[3]]
 
-            -- if all three vertices are behind the camera, ignore the face
-            if not (y1<camera.near and y2<camera.near and y3<camera.near) then
-                projectedModel.faces[faceI]=face
-                faceI+=1
-            end
-
-            -- if all three vertices are beyond the camera, ignore the face
-            if not (y1>camera.far and y2>camera.far and y3>camera.far) then
+            if vetexVisible(v1,camera) or vetexVisible(v2,camera) or vetexVisible(v3,camera) then
                 projectedModel.faces[faceI]=face
                 faceI+=1
             end
