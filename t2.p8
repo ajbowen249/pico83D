@@ -2,6 +2,16 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 
 __lua__
+-- PICO-8 3D Engine
+-- Alex Bowen
+
+-- A good chunk of the math and algorithms here
+-- actually came from ScratchPixel 2.0, which 
+-- managed to be among the top search results for
+-- every specific problem I ran across and wound
+-- up being a great resource. Link:
+-- https://www.scratchapixel.com/index.php?redirect
+
 -- SETTINGS
 wireframe=true
 filled=false
@@ -41,6 +51,14 @@ function add3131(m1,m2)
     return res
 end
 
+function sub3131(m1,m2)
+    local res = {}
+    res[1]=m1[1]-m2[1]
+    res[2]=m1[2]-m2[2]
+    res[3]=m1[3]-m2[3]
+
+    return res
+end
 
 -- Stole this from RosettaCode
 function multMat(m1,m2)
@@ -69,7 +87,58 @@ function tan(angle)
     return sin(angle)/cos(angle)
 end
 
+function cross3131(v1,v2)
+    return {
+        (v1[2]*v2[3])-(v1[3]*v2[2]),
+        (v1[3]*v2[1])-(v1[1]*v2[3]),
+        (v1[1]*v2[2])-(v1[2]*v2[1])
+    }
+end
+
+function dot3131(v1,v2)
+    return (v1[1]*v2[1])+(v1[2]*v2[2])+(v1[3]*v2[3])
+end
+
 -- END MATH SUPPORT
+
+-- Stole and ported this from Wikipedia with
+-- u,v,t preservation.
+-- https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+epsilon=0.00001
+negEpsilon=-0.00001
+function rayTriangleIntersect(orig,ray,v0,v1,v2)
+    local miss={false,0,0,0}
+
+    local e1=sub3131(v1,v0)
+    local e2=sub3131(v2,v0)
+
+    local h=cross3131(ray,e2)
+    local a=dot3131(e1,h)
+    if a>negEpsilon and a<epsilon then
+        return miss
+    end
+
+    local f=1/a
+    local s=sub3131(orig,v0)
+    local u=f*(dot3131(s,h))
+    if u<0 or u>1 then
+        return miss
+    end
+
+    local q=cross3131(s,e1)
+    local v=f*(dot3131(ray,q))
+    if v<0 or (u+v)>1 then
+        return miss
+    end
+
+    -- I don't care too much about facing....yet
+    local t=abs(f*(dot3131(e2,q)))
+    if t>epsilon then
+        return {true,u,v,t}
+    end
+
+    return miss
+end
 
 function vetexVisible(vertex,cam)
     local leftRight = vertex[1]>0 and vertex[1]<=screenWidth
