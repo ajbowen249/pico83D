@@ -13,8 +13,8 @@ __lua__
 -- https://www.scratchapixel.com/index.php?redirect
 
 -- SETTINGS
-wireframe=true
-filled=false
+wireframe=false
+filled=true
 -- END SETTINGS
 
 --CONSTANTS
@@ -28,36 +28,36 @@ screenWidth=128
 -- assumes 3x1 is actually 4x1 with a
 -- w-value of 1
 function mult3144(m31,m44)
-    local x=(m31[1]*m44[1][1])+(m31[2]*m44[2][1])+(m31[3]*m44[3][1])+m44[4][1]
-    local y=(m31[1]*m44[1][2])+(m31[2]*m44[2][2])+(m31[3]*m44[3][2])+m44[4][2]
-    local z=(m31[1]*m44[1][3])+(m31[2]*m44[2][3])+(m31[3]*m44[3][3])+m44[4][3]
-    local w=(m31[1]*m44[1][4])+(m31[2]*m44[2][4])+(m31[3]*m44[3][4])+m44[4][4]
-    if w != 1 and w != 0 then
-       x /= w
-       y /= w
-       z /= w
+    local mat={
+        (m31[1]*m44[1][1])+(m31[2]*m44[2][1])+(m31[3]*m44[3][1])+m44[4][1],
+        (m31[1]*m44[1][2])+(m31[2]*m44[2][2])+(m31[3]*m44[3][2])+m44[4][2],
+        (m31[1]*m44[1][3])+(m31[2]*m44[2][3])+(m31[3]*m44[3][3])+m44[4][3],
+        (m31[1]*m44[1][4])+(m31[2]*m44[2][4])+(m31[3]*m44[3][4])+m44[4][4]
+    }
+
+    if mat[4] != 1 and mat[4] != 0 then
+       mat[1] /= w
+       mat[2] /= w
+       mat[3] /= w
     end
 
-    return {x,y,z}
+    return mat
 end
 
--- Pre-emptive loop unrolling FTW
 function add3131(m1,m2)
-    local res = {}
-    res[1]=m1[1]+m2[1]
-    res[2]=m1[2]+m2[2]
-    res[3]=m1[3]+m2[3]
-
-    return res
+    return {
+        m1[1]+m2[1],
+        m1[2]+m2[2],
+        m1[3]+m2[3]
+    }
 end
 
 function sub3131(m1,m2)
-    local res = {}
-    res[1]=m1[1]-m2[1]
-    res[2]=m1[2]-m2[2]
-    res[3]=m1[3]-m2[3]
-
-    return res
+    return {
+        m1[1]-m2[1],
+        m1[2]-m2[2],
+        m1[3]-m2[3]
+    }
 end
 
 -- Stole this from RosettaCode
@@ -104,35 +104,38 @@ end
 -- Stole and ported this from Wikipedia with
 -- u,v,t preservation.
 -- https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
-epsilon=0.00001
-negEpsilon=-0.00001
+epsilon=0.0001
+negEpsilon=-0.0001
 function rayTriangleIntersect(orig,ray,v0,v1,v2)
     local miss={false,0,0,0}
+    local sub=sub3131
+    local dot=dot3131
+    local cross=cross3131
 
-    local e1=sub3131(v1,v0)
-    local e2=sub3131(v2,v0)
+    local e1=sub(v1,v0)
+    local e2=sub(v2,v0)
 
-    local h=cross3131(ray,e2)
-    local a=dot3131(e1,h)
+    local h=cross(ray,e2)
+    local a=dot(e1,h)
     if a>negEpsilon and a<epsilon then
         return miss
     end
 
     local f=1/a
-    local s=sub3131(orig,v0)
-    local u=f*(dot3131(s,h))
+    local s=sub(orig,v0)
+    local u=f*(dot(s,h))
     if u<0 or u>1 then
         return miss
     end
 
-    local q=cross3131(s,e1)
-    local v=f*(dot3131(ray,q))
+    local q=cross(s,e1)
+    local v=f*(dot(ray,q))
     if v<0 or (u+v)>1 then
         return miss
     end
 
     -- I don't care too much about facing....yet
-    local t=abs(f*(dot3131(e2,q)))
+    local t=abs(f*(dot(e2,q)))
     if t>epsilon then
         return {true,u,v,t}
     end
@@ -255,20 +258,63 @@ function project()
     return projectedModels
 end
 
-function drawPolygon(v1,v2,v3,col)
-    if wireframe then
-        -- Note, z at this point is the negative screen-y coordinate
-        line(v1[1],screenHeight-1-v1[3],v2[1],screenHeight-1-v2[3],col)
-        line(v2[1],screenHeight-1-v2[3],v3[1],screenHeight-1-v3[3],col)
-        line(v3[1],screenHeight-1-v3[3],v1[1],screenHeight-1-v1[3],col)
-    end
+function drawWirePolygon(v1,v2,v3,col)
+    -- Note, z at this point is the negative screen-y coordinate
+    line(v1[1],screenHeight-1-v1[3],v2[1],screenHeight-1-v2[3],col)
+    line(v2[1],screenHeight-1-v2[3],v3[1],screenHeight-1-v3[3],col)
+    line(v3[1],screenHeight-1-v3[3],v1[1],screenHeight-1-v1[3],col)
 end
 
 function draw3D()
     local projectedModels = project()
-    for _,model in pairs(projectedModels) do
-        for _,face in pairs(model.faces) do
-            drawPolygon(model.vertices[face[1]],model.vertices[face[2]],model.vertices[face[3]],face[4])
+
+    --This is pretty bad. Make it better.
+    if filled then
+        local rti = rayTriangleIntersect
+
+        local pixelOrigin={col,1,row}
+        local closestUVT={false,0,0,32767}
+        local closestModelIndex=0
+        local closestFaceIndex=0
+        local projRay={0,1,0}
+
+        for col=1,screenWidth,1 do
+            for row=1,screenHeight,1 do
+                pixelOrigin[1]=col
+                pixelOrigin[3]=screenHeight-1-row
+                closestUVT[1]=false
+                closestUVT[4]=32767
+
+                for mi,model in pairs(projectedModels) do
+                    for fi,face in pairs(model.faces) do
+                        local v1=model.vertices[face[1]]
+                        local v2=model.vertices[face[2]]
+                        local v3=model.vertices[face[3]]
+                        local intersection=rti(pixelOrigin,projRay,v1,v2,v3)
+                        if intersection[1] and intersection[4] < closestUVT[4] then
+                            closestUVT[1]=true
+                            closestUVT[2]=intersection[2]
+                            closestUVT[3]=intersection[4]
+                            closestUVT[4]=intersection[3]
+                            closestModelIndex=mi
+                            closestFaceIndex=fi
+                        end
+                    end
+                end
+
+                if closestUVT[1] then
+                    color=projectedModels[closestModelIndex].faces[closestFaceIndex][4]
+                    pset(col,row,color)
+                end
+            end
+        end
+    end
+
+    if wireframe then
+        for _,model in pairs(projectedModels) do
+            for _,face in pairs(model.faces) do
+                drawWirePolygon(model.vertices[face[1]],model.vertices[face[2]],model.vertices[face[3]],face[4])
+            end
         end
     end
 end
@@ -346,8 +392,8 @@ models = {
 }
 
 camera={
-    loc={0,0,15},
-    rot={0,0,0},
+    loc={0,-15,15},
+    rot={0,0,.05},
     fov=60/360,
     near=1,
     far=100
