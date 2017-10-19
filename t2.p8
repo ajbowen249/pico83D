@@ -272,39 +272,83 @@ function draw3D()
     if filled then
         local rti = rayTriangleIntersect
 
-        local pixelOrigin={col,1,row}
-        local closestUVT={false,0,0,32767}
-        local closestModelIndex=0
-        local closestFaceIndex=0
         local projRay={0,1,0}
+        local pixelOrigin={0,1,0}
+        local zBuf = zBuffer
 
         for col=1,screenWidth,1 do
             for row=1,screenHeight,1 do
-                pixelOrigin[1]=col
-                pixelOrigin[3]=screenHeight-1-row
-                closestUVT[1]=false
-                closestUVT[4]=32767
+                zBuf[col][row]=150
+            end
+        end
 
-                for mi,model in pairs(projectedModels) do
-                    for fi,face in pairs(model.faces) do
-                        local v1=model.vertices[face[1]]
-                        local v2=model.vertices[face[2]]
-                        local v3=model.vertices[face[3]]
+        for mi,model in pairs(projectedModels) do
+            for fi,face in pairs(model.faces) do
+                local v1=model.vertices[face[1]]
+                local v2=model.vertices[face[2]]
+                local v3=model.vertices[face[3]]
+
+                local minX=v1[1]
+                if v2[1]<minX then
+                    minX=v2[1]
+                end
+                if v3[1]<minX then
+                    minX=v3[1]
+                end
+                if minX<1 then
+                    minX=1
+                end
+                minX=flr(minX)
+
+                local maxX=v1[1]
+                if v2[1]>maxX then
+                    maxX=v2[1]
+                end
+                if v3[1]>maxX then
+                    maxX=v3[1]
+                end
+                if maxX>screenWidth then
+                    maxX=screenWidth-1
+                end
+                maxX=-flr(-maxX)
+
+                local minZ=v1[3]
+                if v2[3]<minZ then
+                    minZ=v2[3]
+                end
+                if v3[3]<minZ then
+                    minZ=v3[3]
+                end
+                if minZ<1 then
+                    minZ=1
+                end
+                minZ=flr(minZ)
+
+                local maxZ=v1[3]
+                if v2[3]>maxZ then
+                    maxZ=v2[3]
+                end
+                if v3[3]>maxZ then
+                    maxZ=v3[3]
+                end
+                if maxZ>screenHeight then
+                    maxZ=screenHeight-1
+                end
+                maxZ=-flr(-maxZ)
+
+                local color=face[4]
+
+                for col=minX,maxX,1 do
+                    for row=minZ,maxZ,1 do
+                        pixelOrigin[1]=col
+                        pixelOrigin[3]=row
+
                         local intersection=rti(pixelOrigin,projRay,v1,v2,v3)
-                        if intersection[1] and intersection[4] < closestUVT[4] then
-                            closestUVT[1]=true
-                            closestUVT[2]=intersection[2]
-                            closestUVT[3]=intersection[4]
-                            closestUVT[4]=intersection[3]
-                            closestModelIndex=mi
-                            closestFaceIndex=fi
+                        if intersection[1] and intersection[4] < zBuf[col][row] then
+                            zBuf[col][row]=intersection[4]
+                            pset(col,screenHeight-1-row,color)
                         end
                     end
-                end
-
-                if closestUVT[1] then
-                    color=projectedModels[closestModelIndex].faces[closestFaceIndex][4]
-                    pset(col,row,color)
                 end
             end
         end
@@ -399,6 +443,13 @@ camera={
     far=100
 }
 
+zBuffer={}
+for col=1,screenWidth,1 do
+    zBuffer[col]={}
+    for row=1,screenHeight,1 do
+        zBuffer[col][row]=150
+    end
+end
 
 function _update60()
     models[1].rot[3]=(models[1].rot[3]+0.005)%1
@@ -428,7 +479,7 @@ function _update60()
         moveVector[1]=moveSpeed
     end
 
-    local viewRot=makeRotationMatrix({0,0,camera.rot[3]*-1})    
+    local viewRot=makeRotationMatrix({0,0,camera.rot[3]*-1})
     camera.loc=add3131(camera.loc,mult3144(moveVector,viewRot))
 end
 
@@ -437,7 +488,7 @@ function _draw()
     draw3D()
 end
 
---draw3D()
+draw3D()
 
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
