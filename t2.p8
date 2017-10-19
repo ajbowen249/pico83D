@@ -101,47 +101,9 @@ end
 
 -- END MATH SUPPORT
 
--- Stole and ported this from Wikipedia with
--- u,v,t preservation.
--- https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+
 epsilon=0.0001
 negEpsilon=-0.0001
-function rayTriangleIntersect(orig,ray,v0,v1,v2)
-    local miss={false,0,0,0}
-    local sub=sub3131
-    local dot=dot3131
-    local cross=cross3131
-
-    local e1=sub(v1,v0)
-    local e2=sub(v2,v0)
-
-    local h=cross(ray,e2)
-    local a=dot(e1,h)
-    if a>negEpsilon and a<epsilon then
-        return miss
-    end
-
-    local f=1/a
-    local s=sub(orig,v0)
-    local u=f*(dot(s,h))
-    if u<0 or u>1 then
-        return miss
-    end
-
-    local q=cross(s,e1)
-    local v=f*(dot(ray,q))
-    if v<0 or (u+v)>1 then
-        return miss
-    end
-
-    -- I don't care too much about facing....yet
-    local t=abs(f*(dot(e2,q)))
-    if t>epsilon then
-        return {true,u,v,t}
-    end
-
-    return miss
-end
 
 function vetexVisible(vertex,cam)
     local leftRight = vertex[1]>0 and vertex[1]<=screenWidth
@@ -270,11 +232,22 @@ function draw3D()
 
     --This is pretty bad. Make it better.
     if filled then
-        local rti = rayTriangleIntersect
-
-        local projRay={0,1,0}
-        local pixelOrigin={0,1,0}
         local zBuf = zBuffer
+
+        local u=0
+        local v=0
+        local t=0
+        local h1=0
+        local h2=0
+        local h3=0
+        local a=0
+        local f=0
+        local s1=0
+        local s2=0
+        local s3=0
+        local q1=0
+        local q2=0
+        local q3=0
 
         for col=1,screenWidth,1 do
             for row=1,screenHeight,1 do
@@ -284,9 +257,15 @@ function draw3D()
 
         for mi,model in pairs(projectedModels) do
             for fi,face in pairs(model.faces) do
+                local sub=sub3131
+
                 local v1=model.vertices[face[1]]
                 local v2=model.vertices[face[2]]
                 local v3=model.vertices[face[3]]
+
+                local v11=v1[1]
+                local v12=v1[2]
+                local v13=v1[3]
 
                 local minX=v1[1]
                 if v2[1]<minX then
@@ -338,15 +317,80 @@ function draw3D()
 
                 local color=face[4]
 
+                local e1=sub(v2,v1)
+                local e11=e1[1]
+                local e12=e1[2]
+                local e13=e1[3]
+
+                local e2=sub(v3,v1)
+                local e21=e2[1]
+                local e22=e2[2]
+                local e23=e2[3]
+
                 for col=minX,maxX,1 do
                     for row=minZ,maxZ,1 do
-                        pixelOrigin[1]=col
-                        pixelOrigin[3]=row
+                        local hit=false
 
-                        local intersection=rti(pixelOrigin,projRay,v1,v2,v3)
-                        if intersection[1] and intersection[4] < zBuf[col][row] then
-                            zBuf[col][row]=intersection[4]
-                            pset(col,screenHeight-1-row,color)
+-- This is basically Moller-Trombore stolen and ported this from Wikipedia.
+-- https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+-- It used to be a function, then I moved it all inline for performance reasons.
+
+                        repeat
+                            h1=(1*e23)-(0*e22)
+                            h2=(0*e21)-(0*e23)
+                            h3=(0*e22)-(1*e21)
+
+                            a=(e11*h1)+(e12*h2)+(e13*h3)
+
+                            if a>negEpsilon and a<epsilon then
+                                break
+                            end
+
+                            f=1/a
+
+                            s1=col-v11
+                            s2=1-v12
+                            s3=row-v13
+
+                            u=f*((s1*h1)+(s2*h2)+(s3*h3))
+
+                            if u<0 or u>1 then
+                                break
+                            end
+
+                            q1=(s2*e13)-(s3*e12)
+                            q2=(s3*e11)-(s1*e13)
+                            q3=(s1*e12)-(s2*e11)
+
+                            v=f*((0*q1)+(1*q2)+(0*q3))
+                            if v<0 or (u+v)>1 then
+                                break
+                            end
+
+                            t=f*((e21*q1)+(e22*q2)+(e23*q3))
+                            -- I don't care too much about facing....yet
+                            if t<0 then t=-t end
+                            if t>epsilon then
+                                hit=true
+                            end
+                        until true
+
+                        if hit and t < zBuf[col][row] then
+                            zBuf[col][row]=t
+                            local finalcolor = color
+                            if finalcolor == 16 then
+                                local tx=flr(u*8)
+                                local ty=flr(v*8)
+                                finalcolor=sget(tx,ty)
+                            end
+
+                            if finalcolor == 17 then
+                                local tx=7-flr(u*8)
+                                local ty=7-flr(v*8)
+                                finalcolor=sget(tx,ty)
+                            end
+
+                            pset(col,screenHeight-1-row,finalcolor)
                         end
                     end
                 end
@@ -407,8 +451,8 @@ models = {
             {3,4,1, 2}, --
             {5,6,7, 3}, --top
             {7,8,5, 4}, --
-            {1,5,8, 5}, --front
-            {8,4,1, 6}, --
+            {5,8,1,16}, --front
+            {4,1,8,17}, --
             {6,5,1, 7}, --left
             {1,2,6, 8}, --
             {2,3,7, 9}, --back
@@ -481,6 +525,11 @@ function _update60()
 
     local viewRot=makeRotationMatrix({0,0,camera.rot[3]*-1})
     camera.loc=add3131(camera.loc,mult3144(moveVector,viewRot))
+
+    if btnp(5,1) then
+        wireframe=not wireframe
+        filled=not filled
+    end
 end
 
 function _draw()
@@ -491,14 +540,14 @@ end
 draw3D()
 
 __gfx__
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+ccc11111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+cc177111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+c17cc711000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+17c07c11000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+17c0071c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+117771cc000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11111ccc000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+1111cccc000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
