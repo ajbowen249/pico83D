@@ -20,6 +20,9 @@ filled=true
 --CONSTANTS
 screenHeight=128
 screenWidth=128
+
+epsilon=0.0001
+negEpsilon=-0.0001
 --END CONSTANTS
 
 -- MATH SUPPORT
@@ -87,23 +90,7 @@ function tan(angle)
     return sin(angle)/cos(angle)
 end
 
-function cross3131(v1,v2)
-    return {
-        (v1[2]*v2[3])-(v1[3]*v2[2]),
-        (v1[3]*v2[1])-(v1[1]*v2[3]),
-        (v1[1]*v2[2])-(v1[2]*v2[1])
-    }
-end
-
-function dot3131(v1,v2)
-    return (v1[1]*v2[1])+(v1[2]*v2[2])+(v1[3]*v2[3])
-end
-
 -- END MATH SUPPORT
-
-
-epsilon=0.0001
-negEpsilon=-0.0001
 
 function vetexVisible(vertex,cam)
     local leftRight = vertex[1]>0 and vertex[1]<=screenWidth
@@ -182,11 +169,17 @@ function project()
             vertex[1]/=scaleFactor
             vertex[3]/=scaleFactor
 
-            -- screeen-space projection
+            -- clip-space projection
             vertex[1]*=pixelScale
             vertex[3]*=pixelScale
             vertex[1]+=screenWidth/2
             vertex[3]+=screenHeight/2
+
+            -- flip z and y for convenience later
+            local z=vertex[3]
+            vertex[3]=vertex[2]
+            -- lower y values are on top
+            vertex[2]=screenHeight-z
 
             projectedModel.vertices[vi]=vertex
         end
@@ -221,10 +214,9 @@ function project()
 end
 
 function drawWirePolygon(v1,v2,v3,col)
-    -- Note, z at this point is the negative screen-y coordinate
-    line(v1[1],screenHeight-1-v1[3],v2[1],screenHeight-1-v2[3],col)
-    line(v2[1],screenHeight-1-v2[3],v3[1],screenHeight-1-v3[3],col)
-    line(v3[1],screenHeight-1-v3[3],v1[1],screenHeight-1-v1[3],col)
+    line(v1[1],v1[2],v2[1],v2[2],col)
+    line(v2[1],v2[2],v3[1],v3[2],col)
+    line(v3[1],v3[2],v1[1],v1[2],col)
 end
 
 function draw_span( leftX, rightX, row, color )
@@ -347,167 +339,11 @@ function draw_triangle( face, v1, v2, v3 )
 
 end
 
-function draw_triangle_original( face, v1, v2, v3 )
-    local zBuf = zBuffer
-    local sub=sub3131
-
-    local v11=v1[1]
-    local v12=v1[2]
-    local v13=v1[3]
-
-    local minX = min( v1)
-
-    local minX=v1[1]
-    if v2[1]<minX then
-        minX=v2[1]
-    end
-    if v3[1]<minX then
-        minX=v3[1]
-    end
-    if minX<1 then
-        minX=1
-    end
-    minX=flr(minX)
-
-    local maxX=v1[1]
-    if v2[1]>maxX then
-        maxX=v2[1]
-    end
-    if v3[1]>maxX then
-        maxX=v3[1]
-    end
-    if maxX>screenWidth then
-        maxX=screenWidth-1
-    end
-    maxX=-flr(-maxX)
-
-    local minZ=v1[3]
-    if v2[3]<minZ then
-        minZ=v2[3]
-    end
-    if v3[3]<minZ then
-        minZ=v3[3]
-    end
-    if minZ<1 then
-        minZ=1
-    end
-    minZ=flr(minZ)
-
-    local maxZ=v1[3]
-    if v2[3]>maxZ then
-        maxZ=v2[3]
-    end
-    if v3[3]>maxZ then
-        maxZ=v3[3]
-    end
-    if maxZ>screenHeight then
-        maxZ=screenHeight-1
-    end
-    maxZ=-flr(-maxZ)
-
-    local color=face[4]
-
-    local e1=sub(v2,v1)
-    local e11=e1[1]
-    local e12=e1[2]
-    local e13=e1[3]
-
-    local e2=sub(v3,v1)
-    local e21=e2[1]
-    local e22=e2[2]
-    local e23=e2[3]
-
-    for row=minZ,maxZ,1 do
-        for col=minX,maxX,1 do
-            local hit=false
-
--- This is basically Moller-Trombore stolen and ported this from Wikipedia.
--- https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
--- It used to be a function, then I moved it all inline for performance reasons.
-
-            repeat
-                local h1=e23
-                local h2=0
-                local h3=-e21
-
-                a=(e11*h1)+(e13*h3)
-
-                if a>negEpsilon and a<epsilon then
-                    break
-                end
-
-                f=1/a
-
-                s1=col-v11
-                s2=1-v12
-                s3=row-v13
-
-                u = f*((s1*h1)+(s3*h3))
-
-                if u<0 or u>1 then
-                    break
-                end
-
-                q1=(s2*e13)-(s3*e12)
-                q2=(s3*e11)-(s1*e13)
-                q3=(s1*e12)-(s2*e11)
-
-                v=f*((0*q1)+(1*q2)+(0*q3))
-                if v<0 or (u+v)>1 then
-                    break
-                end
-
-                t=f*((e21*q1)+(e22*q2)+(e23*q3))
-                -- I don't care too much about facing....yet
-                if t<0 then t=-t end
-                if t>epsilon then
-                    hit=true
-                end
-            until true
-
-            if hit and t < zBuf[col][row] then
-                zBuf[col][row]=t
-                local finalcolor = color
-                if finalcolor == 16 then
-                    local tx=flr(u*8)
-                    local ty=flr(v*8)
-                    finalcolor=sget(tx,ty)
-                end
-
-                if finalcolor == 17 then
-                    local tx=7-flr(u*8)
-                    local ty=7-flr(v*8)
-                    finalcolor=sget(tx,ty)
-                end
-
-                pset(col,screenHeight-1-row,finalcolor)
-            end
-        end
-    end
-
-end
-
 function draw3D()
     local projectedModels = project()
 
     --This is pretty bad. Make it better.
     if filled then
-
-        local u=0
-        local v=0
-        local t=0
-        local h1=0
-        local h2=0
-        local h3=0
-        local a=0
-        local f=0
-        local s1=0
-        local s2=0
-        local s3=0
-        local q1=0
-        local q2=0
-        local q3=0
-
         -- Clear the zBuffer
         local zBuf = zBuffer
         for col=1,screenWidth,1 do
@@ -576,8 +412,8 @@ models = {
             {3,4,1, 2}, --
             {5,6,7, 3}, --top
             {7,8,5, 4}, --
-            {5,8,1,16}, --front
-            {4,1,8,17}, --
+            {5,8,1, 5}, --front
+            {4,1,8, 6}, --
             {6,5,1, 7}, --left
             {1,2,6, 8}, --
             {2,3,7, 9}, --back
@@ -662,7 +498,7 @@ function _draw()
     draw3D()
 end
 
-draw3D()
+--draw3D()
 
 __gfx__
 ccc11111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
