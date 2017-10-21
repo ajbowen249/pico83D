@@ -227,12 +227,271 @@ function drawWirePolygon(v1,v2,v3,col)
     line(v3[1],screenHeight-1-v3[3],v1[1],screenHeight-1-v1[3],col)
 end
 
+function draw_span( leftX, rightX, row, color )
+    assert( rightX >= leftX )
+    line( flr( leftX ), row, flr( rightX ), row, color )
+end
+
+function draw_spans( leftX, rightX, startY, endY, leftStepX, rigtStepX, color )
+    assert( endY >= startY )
+    for row = flr( startY ), flr( endY ) do
+        if row >= screenHeight then
+            break
+        end        
+        if row >= 0 then
+            draw_span( leftX, rightX, row, color )
+        end
+        leftX += leftStepX
+        rightX += rigtStepX
+    end
+
+    return leftX, rightX
+end
+
+function draw_triangle( face, v1, v2, v3 )
+
+    -- For convenience, store the vertex components in nicer names.
+
+    v1.x = v1[ 1 ]
+    v1.y = v1[ 2 ]
+    v1.z = v1[ 3 ]
+    v2.x = v2[ 1 ]
+    v2.y = v2[ 2 ]
+    v2.z = v2[ 3 ]
+    v3.x = v3[ 1 ]
+    v3.y = v3[ 2 ]
+    v3.z = v3[ 3 ]
+
+    -- Find the topmost vertex. "Topmost" means highest Y in clip space.
+
+    local topmost = v1.y < v2.y and v1 or v2
+    topmost = topmost.y < v3.y and topmost or v3
+
+    -- Given this topmost, identify the two "limbs" to either side. Initially "left" and "right" are speculative.
+
+    local leftmost = topmost == v1 and v2 or v1
+    local rigtmost = topmost == v1 and v3 or ( topmost == v2 and v3 or v2 )
+
+    -- Ensure that leftmost and rigtmost are actually in the right order.
+
+    if leftmost.x > rigtmost.x then
+        local temp = leftmost
+        leftmost = rigtmost
+        rigtmost = temp
+    end
+
+    assert( rigtmost.x >= leftmost.x )
+
+    -- Lastly, find the bottommost vertex
+
+    local bottommost = leftmost.y > rigtmost.y and leftmost or rigtmost
+
+    -- We now have a graph of sorts from the top vertex to the bottom vertex via the left and right vertices.
+    -- Calculate the major "stepping" values, and handle any degenerate cases.
+
+    local leftStepX = 0
+    local rigtStepX = 0
+
+    local leftDeltaY = leftmost.y - topmost.y
+    local rigtDeltaY = rigtmost.y - topmost.y
+    if leftDeltaY <= 0 or rigtDeltaY <= 0 then
+        -- Degenerate: left point is at same Y level as top
+        -- TODO
+        return
+    end
+
+    assert( leftDeltaY > 0 )
+    assert( rigtDeltaY > 0 )
+
+    leftStepX = ( leftmost.x - topmost.x ) / leftDeltaY
+    rigtStepX = ( rigtmost.x - topmost.x ) / rigtDeltaY
+
+    -- Fill from the top to the higher of left or right.
+
+    local topLimb = leftmost.y < rigtmost.y and leftmost or rigtmost
+    local targetY = topLimb.y
+
+    local color=face[4] -- TODO Textures    
+    local leftX, rightX = draw_spans( topmost.x, topmost.x, topmost.y, targetY, leftStepX, rigtStepX, color )
+
+    -- Fill from this Y value downward to the next limb.
+
+    -- TODO Trying to get the above working first.
+    -- if topLimb == leftmost then
+    --     local leftDeltaY = bottommost.y - leftmost.y
+
+    --     if leftDeltaY <= 0 then
+    --         -- Degenerate: left point is at same Y level as bottom
+    --         -- TODO
+    --         return
+    --     end
+
+    --     leftX = leftmost.x
+    --     leftStepX = ( bottommost.x - leftX ) / leftDeltaY
+
+    -- else
+    --     local rigtDeltaY = bottommost.y - rigtmost.y
+
+    --     if rigtDeltaY <= 0 then
+    --         -- Degenerate: right point is at same Y level as bottom
+    --         -- TODO
+    --         return
+    --     end
+
+    --     rightX = rigtmost.x
+    --     rigtStepX = ( bottommost.x - rightX ) / rigtDeltaY
+    -- end
+
+    -- assert( leftX <= rightX )
+    -- draw_spans( leftX, rightX, targetY, bottommost.y, leftStepX, rigtStepX, color )
+
+end
+
+function draw_triangle_original( face, v1, v2, v3 )
+    local zBuf = zBuffer
+    local sub=sub3131
+
+    local v11=v1[1]
+    local v12=v1[2]
+    local v13=v1[3]
+
+    local minX = min( v1)
+
+    local minX=v1[1]
+    if v2[1]<minX then
+        minX=v2[1]
+    end
+    if v3[1]<minX then
+        minX=v3[1]
+    end
+    if minX<1 then
+        minX=1
+    end
+    minX=flr(minX)
+
+    local maxX=v1[1]
+    if v2[1]>maxX then
+        maxX=v2[1]
+    end
+    if v3[1]>maxX then
+        maxX=v3[1]
+    end
+    if maxX>screenWidth then
+        maxX=screenWidth-1
+    end
+    maxX=-flr(-maxX)
+
+    local minZ=v1[3]
+    if v2[3]<minZ then
+        minZ=v2[3]
+    end
+    if v3[3]<minZ then
+        minZ=v3[3]
+    end
+    if minZ<1 then
+        minZ=1
+    end
+    minZ=flr(minZ)
+
+    local maxZ=v1[3]
+    if v2[3]>maxZ then
+        maxZ=v2[3]
+    end
+    if v3[3]>maxZ then
+        maxZ=v3[3]
+    end
+    if maxZ>screenHeight then
+        maxZ=screenHeight-1
+    end
+    maxZ=-flr(-maxZ)
+
+    local color=face[4]
+
+    local e1=sub(v2,v1)
+    local e11=e1[1]
+    local e12=e1[2]
+    local e13=e1[3]
+
+    local e2=sub(v3,v1)
+    local e21=e2[1]
+    local e22=e2[2]
+    local e23=e2[3]
+
+    for row=minZ,maxZ,1 do
+        for col=minX,maxX,1 do
+            local hit=false
+
+-- This is basically Moller-Trombore stolen and ported this from Wikipedia.
+-- https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+-- It used to be a function, then I moved it all inline for performance reasons.
+
+            repeat
+                local h1=e23
+                local h2=0
+                local h3=-e21
+
+                a=(e11*h1)+(e13*h3)
+
+                if a>negEpsilon and a<epsilon then
+                    break
+                end
+
+                f=1/a
+
+                s1=col-v11
+                s2=1-v12
+                s3=row-v13
+
+                u = f*((s1*h1)+(s3*h3))
+
+                if u<0 or u>1 then
+                    break
+                end
+
+                q1=(s2*e13)-(s3*e12)
+                q2=(s3*e11)-(s1*e13)
+                q3=(s1*e12)-(s2*e11)
+
+                v=f*((0*q1)+(1*q2)+(0*q3))
+                if v<0 or (u+v)>1 then
+                    break
+                end
+
+                t=f*((e21*q1)+(e22*q2)+(e23*q3))
+                -- I don't care too much about facing....yet
+                if t<0 then t=-t end
+                if t>epsilon then
+                    hit=true
+                end
+            until true
+
+            if hit and t < zBuf[col][row] then
+                zBuf[col][row]=t
+                local finalcolor = color
+                if finalcolor == 16 then
+                    local tx=flr(u*8)
+                    local ty=flr(v*8)
+                    finalcolor=sget(tx,ty)
+                end
+
+                if finalcolor == 17 then
+                    local tx=7-flr(u*8)
+                    local ty=7-flr(v*8)
+                    finalcolor=sget(tx,ty)
+                end
+
+                pset(col,screenHeight-1-row,finalcolor)
+            end
+        end
+    end
+
+end
+
 function draw3D()
     local projectedModels = project()
 
     --This is pretty bad. Make it better.
     if filled then
-        local zBuf = zBuffer
 
         local u=0
         local v=0
@@ -249,6 +508,8 @@ function draw3D()
         local q2=0
         local q3=0
 
+        -- Clear the zBuffer
+        local zBuf = zBuffer
         for col=1,screenWidth,1 do
             for row=1,screenHeight,1 do
                 zBuf[col][row]=150
@@ -257,143 +518,7 @@ function draw3D()
 
         for mi,model in pairs(projectedModels) do
             for fi,face in pairs(model.faces) do
-                local sub=sub3131
-
-                local v1=model.vertices[face[1]]
-                local v2=model.vertices[face[2]]
-                local v3=model.vertices[face[3]]
-
-                local v11=v1[1]
-                local v12=v1[2]
-                local v13=v1[3]
-
-                local minX=v1[1]
-                if v2[1]<minX then
-                    minX=v2[1]
-                end
-                if v3[1]<minX then
-                    minX=v3[1]
-                end
-                if minX<1 then
-                    minX=1
-                end
-                minX=flr(minX)
-
-                local maxX=v1[1]
-                if v2[1]>maxX then
-                    maxX=v2[1]
-                end
-                if v3[1]>maxX then
-                    maxX=v3[1]
-                end
-                if maxX>screenWidth then
-                    maxX=screenWidth-1
-                end
-                maxX=-flr(-maxX)
-
-                local minZ=v1[3]
-                if v2[3]<minZ then
-                    minZ=v2[3]
-                end
-                if v3[3]<minZ then
-                    minZ=v3[3]
-                end
-                if minZ<1 then
-                    minZ=1
-                end
-                minZ=flr(minZ)
-
-                local maxZ=v1[3]
-                if v2[3]>maxZ then
-                    maxZ=v2[3]
-                end
-                if v3[3]>maxZ then
-                    maxZ=v3[3]
-                end
-                if maxZ>screenHeight then
-                    maxZ=screenHeight-1
-                end
-                maxZ=-flr(-maxZ)
-
-                local color=face[4]
-
-                local e1=sub(v2,v1)
-                local e11=e1[1]
-                local e12=e1[2]
-                local e13=e1[3]
-
-                local e2=sub(v3,v1)
-                local e21=e2[1]
-                local e22=e2[2]
-                local e23=e2[3]
-
-                for col=minX,maxX,1 do
-                    for row=minZ,maxZ,1 do
-                        local hit=false
-
--- This is basically Moller-Trombore stolen and ported this from Wikipedia.
--- https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
--- It used to be a function, then I moved it all inline for performance reasons.
-
-                        repeat
-                            h1=(1*e23)-(0*e22)
-                            h2=(0*e21)-(0*e23)
-                            h3=(0*e22)-(1*e21)
-
-                            a=(e11*h1)+(e12*h2)+(e13*h3)
-
-                            if a>negEpsilon and a<epsilon then
-                                break
-                            end
-
-                            f=1/a
-
-                            s1=col-v11
-                            s2=1-v12
-                            s3=row-v13
-
-                            u=f*((s1*h1)+(s2*h2)+(s3*h3))
-
-                            if u<0 or u>1 then
-                                break
-                            end
-
-                            q1=(s2*e13)-(s3*e12)
-                            q2=(s3*e11)-(s1*e13)
-                            q3=(s1*e12)-(s2*e11)
-
-                            v=f*((0*q1)+(1*q2)+(0*q3))
-                            if v<0 or (u+v)>1 then
-                                break
-                            end
-
-                            t=f*((e21*q1)+(e22*q2)+(e23*q3))
-                            -- I don't care too much about facing....yet
-                            if t<0 then t=-t end
-                            if t>epsilon then
-                                hit=true
-                            end
-                        until true
-
-                        if hit and t < zBuf[col][row] then
-                            zBuf[col][row]=t
-                            local finalcolor = color
-                            if finalcolor == 16 then
-                                local tx=flr(u*8)
-                                local ty=flr(v*8)
-                                finalcolor=sget(tx,ty)
-                            end
-
-                            if finalcolor == 17 then
-                                local tx=7-flr(u*8)
-                                local ty=7-flr(v*8)
-                                finalcolor=sget(tx,ty)
-                            end
-
-                            pset(col,screenHeight-1-row,finalcolor)
-                        end
-                    end
-                end
+                draw_triangle( face, model.vertices[ face[ 1 ] ], model.vertices[ face[ 2 ] ], model.vertices[ face[ 3 ] ] )
             end
         end
     end
@@ -835,4 +960,3 @@ __music__
 00 41424344
 00 41424344
 00 41424344
-
