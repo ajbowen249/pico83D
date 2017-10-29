@@ -220,7 +220,11 @@ function drawWirePolygon(v1,v2,v3,col)
 end
 
 function draw_span( leftX, rightX, row, color )
-    assert( rightX >= leftX )
+    if rightX <= leftX then
+        -- extreme slopes can make these pass eachother
+        -- when stepping on discrete Ys
+        rightX = leftX
+    end
     line( flr( leftX ), row, flr( rightX ), row, color )
 end
 
@@ -272,6 +276,19 @@ function draw_triangle( face, v1, v2, v3 )
         rigtmost = temp
     end
 
+    -- If there was a tie for top and a limb, make sure the limbs are actually left/right of top
+    if leftmost.y == topmost.y and topmost.x < leftmost.x then
+        local temp = leftmost
+        leftmost = topmost
+        topmost = temp
+    end
+
+    if rigtmost.y == topmost.y and topmost.x > rigtmost.x then
+        local temp = rigtmost
+        rigtmost = topmost
+        topmost = temp
+    end
+
     assert( rigtmost.x >= leftmost.x )
 
     -- Lastly, find the bottommost vertex
@@ -286,56 +303,58 @@ function draw_triangle( face, v1, v2, v3 )
 
     local leftDeltaY = leftmost.y - topmost.y
     local rigtDeltaY = rigtmost.y - topmost.y
-    if leftDeltaY <= 0 or rigtDeltaY <= 0 then
-        -- Degenerate: left point is at same Y level as top
-        -- TODO
-        return
-    end
-
-    assert( leftDeltaY > 0 )
-    assert( rigtDeltaY > 0 )
-
-    leftStepX = ( leftmost.x - topmost.x ) / leftDeltaY
-    rigtStepX = ( rigtmost.x - topmost.x ) / rigtDeltaY
-
-    -- Fill from the top to the higher of left or right.
-
+    local leftX = -1
+    local rightX = -1
+    local color=face[4] -- TODO Textures
     local topLimb = leftmost.y < rigtmost.y and leftmost or rigtmost
     local targetY = topLimb.y
 
-    local color=face[4] -- TODO Textures    
-    local leftX, rightX = draw_spans( topmost.x, topmost.x, topmost.y, targetY, leftStepX, rigtStepX, color )
+    local drewTop=false
+
+    if leftDeltaY > 0 and rigtDeltaY > 0 then
+        leftStepX = ( leftmost.x - topmost.x ) / leftDeltaY
+        rigtStepX = ( rigtmost.x - topmost.x ) / rigtDeltaY
+
+        -- Fill from the top to the higher of left or right.
+        leftX, rightX = draw_spans( topmost.x, topmost.x, topmost.y, targetY, leftStepX, rigtStepX, color )
+        drewTop=true
+    elseif leftDeltaY <= 0 and rigtDeltaY <= 0 then
+        --TODO: It's a straight line
+        return
+    end
 
     -- Fill from this Y value downward to the next limb.
+    if topLimb == leftmost then
+        local leftDeltaY = bottommost.y - leftmost.y
 
-    -- TODO Trying to get the above working first.
-    -- if topLimb == leftmost then
-    --     local leftDeltaY = bottommost.y - leftmost.y
+        if leftDeltaY <= 0 then
+            -- There's no way for a triangle to have a flat top 
+            -- AND a flat bottom
+            assert(drewTop)
+            return
+        end
 
-    --     if leftDeltaY <= 0 then
-    --         -- Degenerate: left point is at same Y level as bottom
-    --         -- TODO
-    --         return
-    --     end
+        leftStepX = ( bottommost.x - leftX ) / leftDeltaY
+    else
+        local rigtDeltaY = bottommost.y - rigtmost.y
 
-    --     leftX = leftmost.x
-    --     leftStepX = ( bottommost.x - leftX ) / leftDeltaY
+        if rigtDeltaY <= 0 then
+            -- There's no way for a triangle to have a flat top 
+            -- AND a flat bottom
+            assert(drewTop)
+            return
+        end
 
-    -- else
-    --     local rigtDeltaY = bottommost.y - rigtmost.y
+        rigtStepX = ( bottommost.x - rightX ) / rigtDeltaY
+    end
 
-    --     if rigtDeltaY <= 0 then
-    --         -- Degenerate: right point is at same Y level as bottom
-    --         -- TODO
-    --         return
-    --     end
+    if not drewTop then
+        leftX = leftmost.x < topmost.x and leftmost.x or topmost.x
+        rightX = rigtmost.x > topmost.x and rigtmost.x or topmost.x
+    end
 
-    --     rightX = rigtmost.x
-    --     rigtStepX = ( bottommost.x - rightX ) / rigtDeltaY
-    -- end
-
-    -- assert( leftX <= rightX )
-    -- draw_spans( leftX, rightX, targetY, bottommost.y, leftStepX, rigtStepX, color )
+    --assert( leftX <= rightX )
+    draw_spans( leftX, rightX, targetY, bottommost.y, leftStepX, rigtStepX, color )
 
 end
 
@@ -497,8 +516,14 @@ function _draw()
     cls()
     draw3D()
 end
+draw3D()
 
---draw3D()
+--testface = {0,0,0,12}
+--tv1 = {0,30,0}
+--tv2 = {30,30,0}
+--tv3 = {30,60,0}
+--cls()
+--draw_triangle(testface,tv2,tv3,tv1)
 
 __gfx__
 ccc11111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
