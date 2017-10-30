@@ -242,8 +242,6 @@ function draw_spans( mainX, offX, startY, endY, mainStepX, offStepX, color )
         mainX += mainStepX
         offX += offStepX
     end
-
-    return mainX, offX
 end
 
 function draw_triangle( face, v1, v2, v3 )
@@ -289,23 +287,27 @@ function draw_triangle( face, v1, v2, v3 )
 
     -- Traverse from topmost to bottommost
     -- "Main" in this context means, "Along or related to the edge with the biggest range."
+    -- "Off" in the context means, "Along the edge from a main vertex to the mid vertex."
     local mainStepX = (bottommost.x - topmost.x) / (bottommost.y - topmost.y)
     local mainX = topmost.x
 
-    -- "Off" in the context means, "Along the edge from a main vertex to the mid vertex."
-    local offX = topmost.x
+    local hastop = flr(midpoint.y) > flr(topmost.y)
+    local hasbottom = flr(bottommost.y) > flr(midpoint.y)
 
     -- "Midpoint" may actually be at our same Y. If it is, skip the top "half"
-    if midpoint.y > topmost.y then
+    if hastop then
         local offStepX = (midpoint.x - topmost.x) / (midpoint.y - topmost.y)
-        mainX, offX = draw_spans(mainX, offX, topmost.y, midpoint.y, mainStepX, offStepX, color)
-    else
-        -- If the top is flat, jump X over to the "mid" x.
-        offX = midpoint.x
+        local offX = topmost.x
+        draw_spans(mainX, offX, topmost.y, midpoint.y, mainStepX, offStepX, color)
     end
 
     -- Now draw the bottom "half" if applicable
-    if bottommost.y > midpoint.y then
+    if hasbottom then
+        if hastop then
+            mainX = topmost.x + ((midpoint.y - topmost.y) * mainStepX)
+        end
+        
+        local offX = midpoint.x
         local offStepX = (bottommost.x - midpoint.x) / (bottommost.y - midpoint.y)
         draw_spans(mainX, offX, midpoint.y, bottommost.y, mainStepX, offStepX, color)
     end
@@ -471,9 +473,9 @@ function _draw()
 end
 
 --testface = {0,0,0,12}
---tv1 = {0,60,0}
---tv2 = {30,60,0}
---tv3 = {30,30,0}
+--tv1 = {0,29,0}
+--tv2 = {30,30,0}
+--tv3 = {30,59,0}
 --cls()
 --draw_triangle(testface,tv1,tv2,tv3)
 
