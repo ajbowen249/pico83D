@@ -219,35 +219,35 @@ function drawWirePolygon(v1,v2,v3,col)
     line(v3[1],v3[2],v1[1],v1[2],col)
 end
 
-function draw_span( leftX, rightX, row, color )
-    if rightX <= leftX then
-        -- extreme slopes can make these pass eachother
-        -- when stepping on discrete Ys
-        rightX = leftX
+function draw_span( mainX, offX, row, color )
+    if offX < mainX then
+        -- "Main" and "off" lose their meaning here if we
+        -- need to swap. Oh, well.
+        local temp = offX
+        offX = mainX
+        mainX = temp
     end
-    line( flr( leftX ), row, flr( rightX ), row, color )
+    line( flr( mainX ), row, flr( offX ), row, color )
 end
 
-function draw_spans( leftX, rightX, startY, endY, leftStepX, rigtStepX, color )
+function draw_spans( mainX, offX, startY, endY, mainStepX, offStepX, color )
     assert( endY >= startY )
     for row = flr( startY ), flr( endY ) do
         if row >= screenHeight then
             break
         end        
         if row >= 0 then
-            draw_span( leftX, rightX, row, color )
+            draw_span( mainX, offX, row, color )
         end
-        leftX += leftStepX
-        rightX += rigtStepX
+        mainX += mainStepX
+        offX += offStepX
     end
 
-    return leftX, rightX
+    return mainX, offX
 end
 
 function draw_triangle( face, v1, v2, v3 )
-
     -- For convenience, store the vertex components in nicer names.
-
     v1.x = v1[ 1 ]
     v1.y = v1[ 2 ]
     v1.z = v1[ 3 ]
@@ -258,104 +258,57 @@ function draw_triangle( face, v1, v2, v3 )
     v3.y = v3[ 2 ]
     v3.z = v3[ 3 ]
 
-    -- Find the topmost vertex. "Topmost" means highest Y in clip space.
+    local color=face[4] -- TODO Textures
 
+    -- Find the topmost vertex. "Topmost" means highest Y in clip space.
     local topmost = v1.y < v2.y and v1 or v2
     topmost = topmost.y < v3.y and topmost or v3
 
-    -- Given this topmost, identify the two "limbs" to either side. Initially "left" and "right" are speculative.
+    -- Find the bottommost vertex. "Bottommost" means lowest Y in clip space.
+    local bottommost = v1.y > v2.y and v1 or v2
+    bottommost = bottommost.y > v3.y and bottommost or v3
 
-    local leftmost = topmost == v1 and v2 or v1
-    local rigtmost = topmost == v1 and v3 or ( topmost == v2 and v3 or v2 )
-
-    -- Ensure that leftmost and rigtmost are actually in the right order.
-
-    if leftmost.x > rigtmost.x then
-        local temp = leftmost
-        leftmost = rigtmost
-        rigtmost = temp
-    end
-
-    -- If there was a tie for top and a limb, make sure the limbs are actually left/right of top
-    if leftmost.y == topmost.y and topmost.x < leftmost.x then
-        local temp = leftmost
-        leftmost = topmost
-        topmost = temp
-    end
-
-    if rigtmost.y == topmost.y and topmost.x > rigtmost.x then
-        local temp = rigtmost
-        rigtmost = topmost
-        topmost = temp
-    end
-
-    assert( rigtmost.x >= leftmost.x )
-
-    -- Lastly, find the bottommost vertex
-
-    local bottommost = leftmost.y > rigtmost.y and leftmost or rigtmost
-
-    -- We now have a graph of sorts from the top vertex to the bottom vertex via the left and right vertices.
-    -- Calculate the major "stepping" values, and handle any degenerate cases.
-
-    local leftStepX = 0
-    local rigtStepX = 0
-
-    local leftDeltaY = leftmost.y - topmost.y
-    local rigtDeltaY = rigtmost.y - topmost.y
-    local leftX = -1
-    local rightX = -1
-    local color=face[4] -- TODO Textures
-    local topLimb = leftmost.y < rigtmost.y and leftmost or rigtmost
-    local targetY = topLimb.y
-
-    local drewTop=false
-
-    if leftDeltaY > 0 and rigtDeltaY > 0 then
-        leftStepX = ( leftmost.x - topmost.x ) / leftDeltaY
-        rigtStepX = ( rigtmost.x - topmost.x ) / rigtDeltaY
-
-        -- Fill from the top to the higher of left or right.
-        leftX, rightX = draw_spans( topmost.x, topmost.x, topmost.y, targetY, leftStepX, rigtStepX, color )
-        drewTop=true
-    elseif leftDeltaY <= 0 and rigtDeltaY <= 0 then
-        --TODO: It's a straight line
+    if topmost.y == bottommost.y then
+        -- todo: It's a horizontal line
         return
     end
 
-    -- Fill from this Y value downward to the next limb.
-    if topLimb == leftmost then
-        local leftDeltaY = bottommost.y - leftmost.y
+    -- "Midpoint" is a slight misnomer, as it is not centered and may even be
+    -- level with the top or bottom points.
+    local midpoint = v1
+    if midpoint == topmost or midpoint == bottommost then
+        midpoint = v2
+    end
+    if midpoint == topmost or midpoint == bottommost then
+        midpoint = v3
+    end
 
-        if leftDeltaY <= 0 then
-            -- There's no way for a triangle to have a flat top 
-            -- AND a flat bottom
-            assert(drewTop)
-            return
-        end
+    assert(topmost != bottommost)
+    assert(topmost != midpoint)
+    assert(bottommost != midpoint)
 
-        leftStepX = ( bottommost.x - leftX ) / leftDeltaY
+    -- Traverse from topmost to bottommost
+    -- "Main" in this context means, "Along or related to the edge with the biggest range."
+    local mainStepX = (bottommost.x - topmost.x) / (bottommost.y - topmost.y)
+    local mainX = topmost.x
+
+    -- "Off" in the context means, "Along the edge from a main vertex to the mid vertex."
+    local offX = topmost.x
+
+    -- "Midpoint" may actually be at our same Y. If it is, skip the top "half"
+    if midpoint.y > topmost.y then
+        local offStepX = (midpoint.x - topmost.x) / (midpoint.y - topmost.y)
+        mainX, offX = draw_spans(mainX, offX, topmost.y, midpoint.y, mainStepX, offStepX, color)
     else
-        local rigtDeltaY = bottommost.y - rigtmost.y
-
-        if rigtDeltaY <= 0 then
-            -- There's no way for a triangle to have a flat top 
-            -- AND a flat bottom
-            assert(drewTop)
-            return
-        end
-
-        rigtStepX = ( bottommost.x - rightX ) / rigtDeltaY
+        -- If the top is flat, jump X over to the "mid" x.
+        offX = midpoint.x
     end
 
-    if not drewTop then
-        leftX = leftmost.x < topmost.x and leftmost.x or topmost.x
-        rightX = rigtmost.x > topmost.x and rigtmost.x or topmost.x
+    -- Now draw the bottom "half" if applicable
+    if bottommost.y > midpoint.y then
+        local offStepX = (bottommost.x - midpoint.x) / (bottommost.y - midpoint.y)
+        draw_spans(mainX, offX, midpoint.y, bottommost.y, mainStepX, offStepX, color)
     end
-
-    --assert( leftX <= rightX )
-    draw_spans( leftX, rightX, targetY, bottommost.y, leftStepX, rigtStepX, color )
-
 end
 
 function draw3D()
@@ -437,7 +390,7 @@ models = {
             {1,2,6, 8}, --
             {2,3,7, 9}, --back
             {7,6,2,10}, --
-            {3,4,8,12}, --right
+            {3,4,8,11}, --right
             {8,7,3,12}, --
         },
         normals={
@@ -516,14 +469,13 @@ function _draw()
     cls()
     draw3D()
 end
-draw3D()
 
 --testface = {0,0,0,12}
---tv1 = {0,30,0}
---tv2 = {30,30,0}
---tv3 = {30,60,0}
+--tv1 = {0,60,0}
+--tv2 = {30,60,0}
+--tv3 = {30,30,0}
 --cls()
---draw_triangle(testface,tv2,tv3,tv1)
+--draw_triangle(testface,tv1,tv2,tv3)
 
 __gfx__
 ccc11111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
