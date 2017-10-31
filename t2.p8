@@ -219,7 +219,7 @@ function drawWirePolygon(v1,v2,v3,col)
     line(v3[1],v3[2],v1[1],v1[2],col)
 end
 
-function draw_span( mainX, offX, row, minX, maxX, baseZ, zDeltaX, color )
+function draw_span( mainX, offX, row, minX, maxX, color )
     if offX < mainX then
         -- "Main" and "off" lose their meaning here if we
         -- need to swap. Oh, well.
@@ -234,38 +234,27 @@ function draw_span( mainX, offX, row, minX, maxX, baseZ, zDeltaX, color )
     local right = offX < maxX and offX or maxX
     right = right < screenWidth and right or screenWidth
 
-    local z = baseZ
-    local zBuf = zBuffer
-
     for x=flr(left), flr(right) do
-        if z < zBuf[x+1][row+1] then
-            zBuf[x+1][row+1] = z
-            pset(x,row,color)
-        end
-
-        z += zDeltaX
+        pset(x,row,color)
     end
 end
 
-function draw_spans( mainX, offX, startY, endY, mainStepX, offStepX, color, minX, maxX, baseZ, zDeltaY, zDeltaX, drawBottom )
+function draw_spans( mainX, offX, startY, endY, mainStepX, offStepX, color, minX, maxX, drawBottom )
     assert( endY >= startY )
     startY = flr( startY )
     endY = flr( endY )
     if not drawBottom then endY-=1 end
     if endY < startY then endY=startY end
 
-    local z = baseZ
-
     for row = startY, endY do
         if row >= screenHeight then
             break
         end
         if row >= 0 then
-            draw_span( mainX, offX, row, minX, maxX, z, zDeltaX, color )
+            draw_span( mainX, offX, row, minX, maxX, color )
         end
         mainX += mainStepX
         offX += offStepX
-        z += zDeltaY
     end
 
     return mainX
@@ -324,22 +313,18 @@ function draw_triangle( face, v1, v2, v3 )
     local maxX = v1.x > v2.x and v1.x or v2.x
     maxX = maxX > v3.x and maxX or v3.x
 
-    local baseZ = topmost.z
-    local zDeltaY = (bottommost.z - topmost.z) / (bottommost.y - topmost.y)
-    local zDeltaX = (midpoint.z - topmost.z) / (midpoint.x - topmost.x)
-
     -- "Midpoint" may actually be at our same Y. If it is, skip the top "half"
     if hastop then
         local offStepX = (midpoint.x - topmost.x) / (midpoint.y - topmost.y)
         local offX = topmost.x
-        mainX = draw_spans(mainX, offX, topmost.y, midpoint.y, mainStepX, offStepX, color, minX, maxX, baseZ, zDeltaY, zDeltaX, not hasbottom)
+        mainX = draw_spans(mainX, offX, topmost.y, midpoint.y, mainStepX, offStepX, color, minX, maxX, not hasbottom)
     end
 
     -- Now draw the bottom "half" if applicable
     if hasbottom then
         local offX = midpoint.x
         local offStepX = (bottommost.x - midpoint.x) / (bottommost.y - midpoint.y)
-        draw_spans(mainX, offX, midpoint.y, bottommost.y, mainStepX, offStepX, color, minX, maxX, baseZ, zDeltaY, zDeltaX, true)
+        draw_spans(mainX, offX, midpoint.y, bottommost.y, mainStepX, offStepX, color, minX, maxX, true)
     end
 end
 
@@ -348,13 +333,6 @@ function draw3D()
 
     --This is pretty bad. Make it better.
     if filled then
-        -- Clear the zBuffer
-        for col=1,screenWidth do
-            for row=1,screenHeight do
-                zBuffer[col][row]=150
-            end
-        end
-
         for mi,model in pairs(projectedModels) do
             for fi,face in pairs(model.faces) do
                 draw_triangle( face, model.vertices[ face[ 1 ] ], model.vertices[ face[ 2 ] ], model.vertices[ face[ 3 ] ] )
@@ -450,14 +428,6 @@ camera={
     near=1,
     far=100
 }
-
-zBuffer={}
-for col=1,screenWidth,1 do
-    zBuffer[col]={}
-    for row=1,screenHeight,1 do
-        zBuffer[col][row]=150
-    end
-end
 
 function _update60()
     models[1].rot[3]=(models[1].rot[3]+0.005)%1
