@@ -219,7 +219,7 @@ function drawWirePolygon(v1,v2,v3,col)
     line(v3[1],v3[2],v1[1],v1[2],col)
 end
 
-function draw_span( mainX, offX, row, color )
+function draw_span( mainX, offX, row, minX, maxX, color )
     if offX < mainX then
         -- "Main" and "off" lose their meaning here if we
         -- need to swap. Oh, well.
@@ -227,10 +227,16 @@ function draw_span( mainX, offX, row, color )
         offX = mainX
         mainX = temp
     end
-    line( flr( mainX ), row, flr( offX ), row, color )
+
+    local left = mainX > minX and mainX or minX
+    local right = offX < maxX and offX or maxX
+
+    for x=flr(left), flr(right) do
+        pset(x,row,color)
+    end
 end
 
-function draw_spans( mainX, offX, startY, endY, mainStepX, offStepX, color, drawBottom )
+function draw_spans( mainX, offX, startY, endY, mainStepX, offStepX, color, minX, maxX, drawBottom )
     assert( endY >= startY )
     startY = flr( startY )
     endY = flr( endY )
@@ -242,7 +248,7 @@ function draw_spans( mainX, offX, startY, endY, mainStepX, offStepX, color, draw
             break
         end
         if row >= 0 then
-            draw_span( mainX, offX, row, color )
+            draw_span( mainX, offX, row, minX, maxX, color )
         end
         mainX += mainStepX
         offX += offStepX
@@ -301,18 +307,25 @@ function draw_triangle( face, v1, v2, v3 )
     local hastop = flr(midpoint.y) > flr(topmost.y)
     local hasbottom = flr(bottommost.y) > flr(midpoint.y)
 
+    local minX = v1.x < v2.x and v1.x or v2.x
+    minX = minX < v3.x and minX or v3.x
+
+
+    local maxX = v1.x > v2.x and v1.x or v2.x
+    maxX = maxX > v3.x and maxX or v3.x
+
     -- "Midpoint" may actually be at our same Y. If it is, skip the top "half"
     if hastop then
         local offStepX = (midpoint.x - topmost.x) / (midpoint.y - topmost.y)
         local offX = topmost.x
-        mainX = draw_spans(mainX, offX, topmost.y, midpoint.y, mainStepX, offStepX, color, not hasbottom)
+        mainX = draw_spans(mainX, offX, topmost.y, midpoint.y, mainStepX, offStepX, color, minX, maxX, not hasbottom)
     end
 
     -- Now draw the bottom "half" if applicable
     if hasbottom then
         local offX = midpoint.x
         local offStepX = (bottommost.x - midpoint.x) / (bottommost.y - midpoint.y)
-        draw_spans(mainX, offX, midpoint.y, bottommost.y, mainStepX, offStepX, color, true)
+        draw_spans(mainX, offX, midpoint.y, bottommost.y, mainStepX, offStepX, color, minX, maxX, true)
     end
 end
 
