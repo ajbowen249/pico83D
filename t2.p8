@@ -230,18 +230,25 @@ function draw_span( mainX, offX, row, color )
     line( flr( mainX ), row, flr( offX ), row, color )
 end
 
-function draw_spans( mainX, offX, startY, endY, mainStepX, offStepX, color )
+function draw_spans( mainX, offX, startY, endY, mainStepX, offStepX, color, drawBottom )
     assert( endY >= startY )
-    for row = flr( startY ), flr( endY ) do
+    startY = flr( startY )
+    endY = flr( endY )
+    if not drawBottom then endY-=1 end
+    if endY < startY then endY=startY end
+
+    for row = startY, endY do
         if row >= screenHeight then
             break
-        end        
+        end
         if row >= 0 then
             draw_span( mainX, offX, row, color )
         end
         mainX += mainStepX
         offX += offStepX
     end
+
+    return mainX
 end
 
 function draw_triangle( face, v1, v2, v3 )
@@ -298,18 +305,14 @@ function draw_triangle( face, v1, v2, v3 )
     if hastop then
         local offStepX = (midpoint.x - topmost.x) / (midpoint.y - topmost.y)
         local offX = topmost.x
-        draw_spans(mainX, offX, topmost.y, midpoint.y, mainStepX, offStepX, color)
+        mainX = draw_spans(mainX, offX, topmost.y, midpoint.y, mainStepX, offStepX, color, not hasbottom)
     end
 
     -- Now draw the bottom "half" if applicable
     if hasbottom then
-        if hastop then
-            mainX = topmost.x + ((midpoint.y - topmost.y) * mainStepX)
-        end
-        
         local offX = midpoint.x
         local offStepX = (bottommost.x - midpoint.x) / (bottommost.y - midpoint.y)
-        draw_spans(mainX, offX, midpoint.y, bottommost.y, mainStepX, offStepX, color)
+        draw_spans(mainX, offX, midpoint.y, bottommost.y, mainStepX, offStepX, color, true)
     end
 end
 
