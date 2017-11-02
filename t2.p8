@@ -6,7 +6,7 @@ __lua__
 -- Alex Bowen
 
 -- A good chunk of the math and algorithms here
--- actually came from ScratchPixel 2.0, which 
+-- actually came from ScratchPixel 2.0, which
 -- managed to be among the top search results for
 -- every specific problem I ran across and wound
 -- up being a great resource. Link:
@@ -92,10 +92,41 @@ end
 
 -- END MATH SUPPORT
 
+-- ALGORITHM SUPPORT
+function insert_node(head, new)
+    local node = head
+    repeat
+        if new.triangle.face.distance > node.triangle.face.distance then
+            if node.left == nil then
+                node.left = new
+                return
+            else
+                node = node.left
+            end
+        else
+            if node.right == nil then
+                node.right = new
+                return
+            else
+                node = node.right
+            end
+        end
+    until false
+end
+
+function traverse(node, trifunc)
+    if node != nil then
+        traverse(node.left, trifunc)
+        trifunc(node.triangle)
+        traverse(node.right, trifunc)
+    end
+end
+-- END ALGORITHM SUPPORT
+
 function vetexVisible(vertex,cam)
     local leftRight = vertex[1]>0 and vertex[1]<=screenWidth
     local upDown = vertex[3]>0 and vertex[3]<=screenHeight
-    local distance = vertex[2]>cam.near and vertex[3]<cam.far
+    local distance = vertex[2]>cam.near and vertex[2]<cam.far
 
     return leftRight and upDown and distance
 end
@@ -202,6 +233,12 @@ function project()
 
             if normal[2] <= 0 and(vetexVisible(v1,camera) or vetexVisible(v2,camera) or vetexVisible(v3,camera)) then
                 projectedModel.faces[faceI]=face
+
+                local midX = (v1[1]+v2[1]+v3[1])/3
+                local midY = (v1[2]+v2[2]+v3[2])/3
+                local midZ = (v1[3]+v2[3]+v3[3])/3
+
+                projectedModel.faces[faceI].distance = (midX*midX) + (midY*midY) + (midZ*midZ)
                 faceI+=1
             end
         end
@@ -331,13 +368,33 @@ end
 function draw3D()
     local projectedModels = project()
 
-    --This is pretty bad. Make it better.
     if filled then
+        -- dump projected triangles to a binary tree
+        local headnode = nil
         for mi,model in pairs(projectedModels) do
             for fi,face in pairs(model.faces) do
-                draw_triangle( face, model.vertices[ face[ 1 ] ], model.vertices[ face[ 2 ] ], model.vertices[ face[ 3 ] ] )
+                local node = {
+                    triangle={
+                        face=face,
+                        v1=model.vertices[face[1]],
+                        v2=model.vertices[face[2]],
+                        v3=model.vertices[face[3]]
+                    },
+                    left=nil,
+                    right=nil
+                }
+
+                if headnode == nil then
+                    headnode = node
+                else
+                    insert_node(headnode,node)
+                end
             end
         end
+
+        traverse(headnode, function(triangle)
+            draw_triangle(triangle.face,triangle.v1,triangle.v2,triangle.v3)
+        end)
     end
 
     if wireframe then
