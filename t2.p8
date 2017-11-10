@@ -154,26 +154,26 @@ function make_rotation_matrix(rotation)
     return rotationmat
 end
 
-function project()
-    local tanfov = abs(tan(g_camera.fov / 2))
-    local nearplanew = tanfov * g_camera.near
-    local farplanew = tanfov * g_camera.far
+function project(camera, models)
+    local tanfov = abs(tan(camera.fov / 2))
+    local nearplanew = tanfov * camera.near
+    local farplanew = tanfov * camera.far
     local pixelscale = c_screen_width / (nearplanew * 2)
 
-    local perspectivesf = (farplanew - nearplanew) / (g_camera.far - g_camera.near)
+    local perspectivesf = (farplanew - nearplanew) / (camera.far - camera.near)
 
-    local camerarot = make_rotation_matrix(g_camera.rot)
+    local camerarot = make_rotation_matrix(camera.rot)
 
     camera_trans = {
-        x = g_camera.loc.x * -1,
-        y = g_camera.loc.y * -1,
-        z = g_camera.loc.z * -1,
+        x = camera.loc.x * -1,
+        y = camera.loc.y * -1,
+        z = camera.loc.z * -1,
     }
 
     local projected_models = {}
     local proj_mod_idx = 1
 
-    for mi, model in pairs(g_models) do
+    for mi, model in pairs(models) do
         local projected_model = {
             vertices = {},
             faces = {}
@@ -228,7 +228,7 @@ function project()
             local normal = mult_v_44(model.normals[fi], modelrot)
             normal = mult_v_44(normal, camerarot)
 
-            if normal.y <= 0 and (vetex_visible(v1, g_camera) or vetex_visible(v2, g_camera) or vetex_visible(v3, g_camera)) then
+            if normal.y <= 0 and (vetex_visible(v1, camera) or vetex_visible(v2, camera) or vetex_visible(v3, camera)) then
                 projected_model.faces[facei] = face
 
                 local midx = (v1.x + v2.x + v3.x) / 3
@@ -352,7 +352,7 @@ function draw_triangle(face, v1, v2, v3)
 end
 
 function draw3d()
-    local projected_models = project()
+    local projected_models = project(g_camera, g_models)
 
     if g_filled then
         -- dump projected triangles to a binary tree
