@@ -23,39 +23,40 @@ c_screen_width = 128
 
 -- math support
 
--- multiplies a 3x1 mat by a 4x4 mat,
--- assumes 3x1 is actually 4x1 with a
+-- multiplies a vertx by a 4x4 matrix,
+-- assumes vertex is homogeneous with a
 -- w-value of 1
-function mult3144(m31, m44)
-    local mat = {
-        (m31[1] * m44[1][1]) + (m31[2] * m44[2][1]) + (m31[3] * m44[3][1]) + m44[4][1],
-        (m31[1] * m44[1][2]) + (m31[2] * m44[2][2]) + (m31[3] * m44[3][2]) + m44[4][2],
-        (m31[1] * m44[1][3]) + (m31[2] * m44[2][3]) + (m31[3] * m44[3][3]) + m44[4][3],
-        (m31[1] * m44[1][4]) + (m31[2] * m44[2][4]) + (m31[3] * m44[3][4]) + m44[4][4]
+function mult_v_44(vertex, m44)
+    local new_vertex = {
+        x = (vertex.x * m44[1][1]) + (vertex.y * m44[2][1]) + (vertex.z * m44[3][1]) + m44[4][1],
+        y = (vertex.x * m44[1][2]) + (vertex.y * m44[2][2]) + (vertex.z * m44[3][2]) + m44[4][2],
+        z = (vertex.x * m44[1][3]) + (vertex.y * m44[2][3]) + (vertex.z * m44[3][3]) + m44[4][3],
     }
 
-    if mat[4] != 1 and mat[4] != 0 then
-       mat[1] /= w
-       mat[2] /= w
-       mat[3] /= w
+    local w = (vertex.x * m44[1][4]) + (vertex.y * m44[2][4]) + (vertex.z * m44[3][4]) + m44[4][4]
+
+    if w != 1 and w != 0 then
+       mat.x /= w
+       mat.y /= w
+       mat.z /= w
     end
 
-    return mat
+    return new_vertex
 end
 
-function add3131(m1, m2)
+function add_v_v(v1, v2)
     return {
-        m1[1] + m2[1],
-        m1[2] + m2[2],
-        m1[3] + m2[3]
+        x = v1.x + v2.x,
+        y = v1.y + v2.y,
+        z = v1.z + v2.z
     }
 end
 
-function sub3131(m1, m2)
+function sub_v_v(v1, v2)
     return {
-        m1[1] - m2[1],
-        m1[2] - m2[2],
-        m1[3] - m2[3]
+        x = v1.x - v2.x,
+        y = v1.y - v2.y,
+        z = v1.z - v2.z
     }
 end
 
@@ -120,31 +121,31 @@ end
 -- end algorithm support
 
 function vetex_visible(vertex, cam)
-    local leftright = vertex[1] > 0 and vertex[1] <= c_screen_width
-    local updown = vertex[3] > 0 and vertex[3] <= c_screen_height
-    local distance = vertex[2] > cam.near and vertex[2] < cam.far
+    local leftright = vertex.x > 0 and vertex.x <= c_screen_width
+    local updown = vertex.z > 0 and vertex.z <= c_screen_height
+    local distance = vertex.y > cam.near and vertex.y < cam.far
 
     return leftright and updown and distance
 end
 
 function make_rotation_matrix(rotation)
     local xrot = {
-        { 1,                0,                     0, 0 },
-        { 0, cos(rotation[1]), -1 * sin(rotation[1]), 0 },
-        { 0, sin(rotation[1]),      cos(rotation[1]), 0 },
-        { 0,                0,                     0, 1 }
+        { 1,               0,                    0, 0 },
+        { 0, cos(rotation.x), -1 * sin(rotation.x), 0 },
+        { 0, sin(rotation.x),      cos(rotation.x), 0 },
+        { 0,               0,                    0, 1 }
     }
     local yrot = {
-        {      cos(rotation[2]), 0, sin(rotation[2]), 0 },
-        {                     0, 1,                0, 0 },
-        { -1 * sin(rotation[2]), 0, cos(rotation[2]), 0 },
-        {                     0, 0,                0, 1 }
+        {      cos(rotation.y), 0, sin(rotation.y), 0 },
+        {                    0, 1,               0, 0 },
+        { -1 * sin(rotation.y), 0, cos(rotation.y), 0 },
+        {                    0, 0,               0, 1 }
     }
     local zrot = {
-        { cos(rotation[3]), -1 * sin(rotation[3]), 0, 0 },
-        { sin(rotation[3]),      cos(rotation[3]), 0, 0 },
-        {                0,                     0, 1, 0 },
-        {                0,                     0, 0, 1 }
+        { cos(rotation.z), -1 * sin(rotation.z), 0, 0 },
+        { sin(rotation.z),      cos(rotation.z), 0, 0 },
+        {               0,                    0, 1, 0 },
+        {               0,                    0, 0, 1 }
     }
 
     local rotationmat = mult_mat(xrot, yrot)
@@ -164,9 +165,9 @@ function project()
     local camerarot = make_rotation_matrix(g_camera.rot)
 
     camera_trans = {
-        g_camera.loc[1] * -1,
-        g_camera.loc[2] * -1,
-        g_camera.loc[3] * -1,
+        x = g_camera.loc.x * -1,
+        y = g_camera.loc.y * -1,
+        z = g_camera.loc.z * -1,
     }
 
     local projected_models = {}
@@ -179,34 +180,34 @@ function project()
         }
 
         local modelrot = make_rotation_matrix(model.rot)
-        local modelloc = add3131(camera_trans, model.loc)
+        local modelloc = add_v_v(camera_trans, model.loc)
 
         for vi, vert in pairs(model.vertices) do
             -- rotate relative to model center
-            local vertex = mult3144(vert, modelrot)
+            local vertex = mult_v_44(vert, modelrot)
 
             -- translate relative to camera
-            vertex = add3131(modelloc, vertex)
+            vertex = add_v_v(modelloc, vertex)
 
             -- rotate relative to camera
-            vertex = mult3144(vertex, camerarot)
+            vertex = mult_v_44(vertex, camerarot)
 
             -- perspective scaling
-            local scalefactor = vertex[2] * perspectivesf
-            vertex[1] /= scalefactor
-            vertex[3] /= scalefactor
+            local scalefactor = vertex.y * perspectivesf
+            vertex.x /= scalefactor
+            vertex.z /= scalefactor
 
             -- clip-space projection
-            vertex[1] *= pixelscale
-            vertex[3] *= pixelscale
-            vertex[1] += c_screen_width / 2
-            vertex[3] += c_screen_height / 2
+            vertex.x *= pixelscale
+            vertex.z *= pixelscale
+            vertex.x += c_screen_width / 2
+            vertex.z += c_screen_height / 2
 
             -- flip z and y for convenience later
-            local z = vertex[3]
-            vertex[3] = vertex[2]
+            local z = vertex.z
+            vertex.z = vertex.y
             -- lower y values are on top
-            vertex[2] = c_screen_height - z
+            vertex.y = c_screen_height - z
 
             projected_model.vertices[vi] = vertex
         end
@@ -224,15 +225,15 @@ function project()
             -- be good enough for back-face culling, though. the main
             -- problem it has is flat planes facing cardinal directions.
 
-            local normal = mult3144(model.normals[fi], modelrot)
-            normal = mult3144(normal, camerarot)
+            local normal = mult_v_44(model.normals[fi], modelrot)
+            normal = mult_v_44(normal, camerarot)
 
-            if normal[2] <= 0 and (vetex_visible(v1, g_camera) or vetex_visible(v2, g_camera) or vetex_visible(v3, g_camera)) then
+            if normal.y <= 0 and (vetex_visible(v1, g_camera) or vetex_visible(v2, g_camera) or vetex_visible(v3, g_camera)) then
                 projected_model.faces[facei] = face
 
-                local midx = (v1[1] + v2[1] + v3[1]) / 3
-                local midy = (v1[2] + v2[2] + v3[2]) / 3
-                local midz = (v1[3] + v2[3] + v3[3]) / 3
+                local midx = (v1.x + v2.x + v3.x) / 3
+                local midy = (v1.y + v2.y + v3.y) / 3
+                local midz = (v1.z + v2.z + v3.z) / 3
 
                 projected_model.faces[facei].distance = (midx * midx) + (midy * midy) + (midz * midz)
                 facei += 1
@@ -247,9 +248,9 @@ function project()
 end
 
 function draw_wire_polygon(v1, v2, v3, col)
-    line(v1[1], v1[2], v2[1], v2[2], col)
-    line(v2[1], v2[2], v3[1], v3[2], col)
-    line(v3[1], v3[2], v1[1], v1[2], col)
+    line(v1.x, v1.y, v2.x, v2.y, col)
+    line(v2.x, v2.y, v3.x, v3.y, col)
+    line(v3.x, v3.y, v1.x, v1.y, col)
 end
 
 function draw_span(mainx, offx, row, minx, maxx, color)
@@ -267,8 +268,8 @@ function draw_span(mainx, offx, row, minx, maxx, color)
     local right = offx < maxx and offx or maxx
     right = right < c_screen_width and right or c_screen_width
 
-    for x=flr(left), flr(right) do
-        pset(x,row,color)
+    for x = flr(left), flr(right) do
+        pset(x, row, color)
     end
 end
 
@@ -294,17 +295,6 @@ function draw_spans(mainx, offx, starty, endy, mainstepx, offstepx, color, minx,
 end
 
 function draw_triangle(face, v1, v2, v3)
-    -- for convenience, store the vertex components in nicer names.
-    v1.x = v1[ 1 ]
-    v1.y = v1[ 2 ]
-    v1.z = v1[ 3 ]
-    v2.x = v2[ 1 ]
-    v2.y = v2[ 2 ]
-    v2.z = v2[ 3 ]
-    v3.x = v3[ 1 ]
-    v3.y = v3[ 2 ]
-    v3.z = v3[ 3 ]
-
     local color = face[4] -- todo textures
 
     -- find the topmost vertex. "topmost" means highest y in clip space.
@@ -390,7 +380,7 @@ function draw3d()
 
         traverse(head_node,
             function(triangle)
-                draw_triangle(triangle.face,triangle.v1,triangle.v2,triangle.v3)
+                draw_triangle(triangle.face, triangle.v1, triangle.v2, triangle.v3)
             end
         )
     end
@@ -407,11 +397,11 @@ end
 g_models = {
     {
         vertices = {
-            { -5, -5,  0 },
-            { -5,  5,  0 },
-            {  5,  5,  0 },
-            {  5, -5,  0 },
-            {  0,  0, 10 },
+            { x = -5, y = -5, z =  0 },
+            { x = -5, y =  5, z =  0 },
+            { x =  5, y =  5, z =  0 },
+            { x =  5, y = -5, z =  0 },
+            { x =  0, y =  0, z = 10 },
         },
         faces = {
             { 1, 5, 2, 10 },
@@ -422,26 +412,26 @@ g_models = {
             { 3, 4, 1, 15 },
         },
         normals = {
-            { -1,  0,  0, },
-            {  0,  1,  0, },
-            {  1,  0,  0, },
-            {  0, -1,  0, },
-            {  0,  0, -1, },
-            {  0,  0, -1, },
+            { x = -1, y =  0, z =  0, },
+            { x =  0, y =  1, z =  0, },
+            { x =  1, y =  0, z =  0, },
+            { x =  0, y = -1, z =  0, },
+            { x =  0, y =  0, z = -1, },
+            { x =  0, y =  0, z = -1, },
         },
-        loc = { 0, 30, 0 },
-        rot = { 0,  0, 0 }
+        loc = { x = 0, y = 30, z = 0 },
+        rot = { x = 0, y =  0, z = 0 }
     },
     {
         vertices = {
-            { -5, -5,  0 },
-            { -5,  5,  0 },
-            {  5,  5,  0 },
-            {  5, -5,  0 },
-            { -5, -5, 10 },
-            { -5,  5, 10 },
-            {  5,  5, 10 },
-            {  5, -5, 10 },
+            { x = -5, y = -5, z =  0 },
+            { x = -5, y =  5, z =  0 },
+            { x =  5, y =  5, z =  0 },
+            { x =  5, y = -5, z =  0 },
+            { x = -5, y = -5, z = 10 },
+            { x = -5, y =  5, z = 10 },
+            { x =  5, y =  5, z = 10 },
+            { x =  5, y = -5, z = 10 },
         },
         faces = {
             { 1, 2, 3,  1 }, --bottom
@@ -458,62 +448,62 @@ g_models = {
             { 8, 7, 3, 12 }, --
         },
         normals = {
-            {  0,  0, -1 },
-            {  0,  0, -1 },
-            {  0,  0,  1 },
-            {  0,  0,  1 },
-            {  0, -1,  0 },
-            {  0, -1,  0 },
-            { -1,  0,  0 },
-            { -1,  0,  0 },
-            {  0,  1,  0 },
-            {  0,  1,  0 },
-            {  1,  0,  0 },
-            {  1,  0,  0 },
+            { x =  0, y =  0, z = -1 },
+            { x =  0, y =  0, z = -1 },
+            { x =  0, y =  0, z =  1 },
+            { x =  0, y =  0, z =  1 },
+            { x =  0, y = -1, z =  0 },
+            { x =  0, y = -1, z =  0 },
+            { x = -1, y =  0, z =  0 },
+            { x = -1, y =  0, z =  0 },
+            { x =  0, y =  1, z =  0 },
+            { x =  0, y =  1, z =  0 },
+            { x =  1, y =  0, z =  0 },
+            { x =  1, y =  0, z =  0 },
         },
-        loc = { 20, 30, 0 },
-        rot = { 0,   0, 0 }
+        loc = { x = 20, y = 30, z = 0 },
+        rot = { x =  0, y =  0, z = 0 }
     }
 }
 
 g_camera = {
-    loc = { 0, -15,  15 },
-    rot = { 0,   0, .05 },
+    loc = { x = 0, y = -15, z =  15 },
+    rot = { x = 0, y =   0, z = .05 },
     fov = 60 / 360,
     near = 1,
     far = 100
 }
 
 function _update60()
-    g_models[1].rot[3] = (g_models[1].rot[3] + 0.005) % 1
-    g_models[2].rot[3] = (g_models[2].rot[3] + 0.0025) % 1
+    g_models[1].rot.z = (g_models[1].rot.z + 0.005) % 1
+    g_models[2].rot.z = (g_models[2].rot.z + 0.0025) % 1
 
-    local move_vector = { 0, 0, 0 }
+    local move_vector = { x = 0, y = 0, z = 0 }
 
     rot_speed = .005
     movespeed = .2
 
     if btn(0) then
-        g_camera.rot[3] = (g_camera.rot[3] - rot_speed % 1)
+        g_camera.rot.z = (g_camera.rot.z - rot_speed % 1)
     end
     if btn(1) then
-        g_camera.rot[3] = (g_camera.rot[3] + rot_speed % 1)
+        g_camera.rot.z = (g_camera.rot.z + rot_speed % 1)
     end
     if btn(2) then
-        move_vector[2] = movespeed
+        move_vector.y = movespeed
     end
     if btn(3) then
-        move_vector[2] = movespeed * -1
+        move_vector.y = movespeed * -1
     end
     if btn(4) then
-        move_vector[1] = movespeed * -1
+        move_vector.x = movespeed * -1
     end
     if btn(5) then
-        move_vector[1] = movespeed
+        move_vector.x = movespeed
     end
 
-    local view_rot = make_rotation_matrix({ 0, 0, g_camera.rot[3] * -1 })
-    g_camera.loc = add3131(g_camera.loc, mult3144(move_vector, view_rot))
+    local view_rot = make_rotation_matrix({ x = 0, y = 0, z = g_camera.rot.z * -1 })
+    g_camera.loc = add_v_v(g_camera.loc, mult_v_44(move_vector, view_rot))
 
     if btnp(5, 1) then
         g_wireframe = not g_wireframe
