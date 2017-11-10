@@ -1,41 +1,37 @@
 pico-8 cartridge // http://www.pico-8.com
 version 8
-
 __lua__
--- PICO-8 3D Engine
--- Alex Bowen
+-- pico-8 3d engine
+-- alex bowen
 
--- A good chunk of the math and algorithms here
--- actually came from ScratchPixel 2.0, which
+-- a good chunk of the math and algorithms here
+-- actually came from scratchpixel 2.0, which
 -- managed to be among the top search results for
--- every specific problem I ran across and wound
--- up being a great resource. Link:
+-- every specific problem i ran across and wound
+-- up being a great resource. link:
 -- https://www.scratchapixel.com/index.php?redirect
 
--- SETTINGS
-wireframe=false
-filled=true
--- END SETTINGS
+-- settings
+g_wireframe = false
+g_filled = true
+-- end settings
 
---CONSTANTS
-screenHeight=128
-screenWidth=128
+--constants
+c_screen_height = 128
+c_screen_width = 128
+--end constants
 
-epsilon=0.0001
-negEpsilon=-0.0001
---END CONSTANTS
+-- math support
 
--- MATH SUPPORT
-
--- Multiplies a 3x1 mat by a 4x4 mat,
+-- multiplies a 3x1 mat by a 4x4 mat,
 -- assumes 3x1 is actually 4x1 with a
 -- w-value of 1
-function mult3144(m31,m44)
-    local mat={
-        (m31[1]*m44[1][1])+(m31[2]*m44[2][1])+(m31[3]*m44[3][1])+m44[4][1],
-        (m31[1]*m44[1][2])+(m31[2]*m44[2][2])+(m31[3]*m44[3][2])+m44[4][2],
-        (m31[1]*m44[1][3])+(m31[2]*m44[2][3])+(m31[3]*m44[3][3])+m44[4][3],
-        (m31[1]*m44[1][4])+(m31[2]*m44[2][4])+(m31[3]*m44[3][4])+m44[4][4]
+function mult3144(m31, m44)
+    local mat = {
+        (m31[1] * m44[1][1]) + (m31[2] * m44[2][1]) + (m31[3] * m44[3][1]) + m44[4][1],
+        (m31[1] * m44[1][2]) + (m31[2] * m44[2][2]) + (m31[3] * m44[3][2]) + m44[4][2],
+        (m31[1] * m44[1][3]) + (m31[2] * m44[2][3]) + (m31[3] * m44[3][3]) + m44[4][3],
+        (m31[1] * m44[1][4]) + (m31[2] * m44[2][4]) + (m31[3] * m44[3][4]) + m44[4][4]
     }
 
     if mat[4] != 1 and mat[4] != 0 then
@@ -47,36 +43,36 @@ function mult3144(m31,m44)
     return mat
 end
 
-function add3131(m1,m2)
+function add3131(m1, m2)
     return {
-        m1[1]+m2[1],
-        m1[2]+m2[2],
-        m1[3]+m2[3]
+        m1[1] + m2[1],
+        m1[2] + m2[2],
+        m1[3] + m2[3]
     }
 end
 
-function sub3131(m1,m2)
+function sub3131(m1, m2)
     return {
-        m1[1]-m2[1],
-        m1[2]-m2[2],
-        m1[3]-m2[3]
+        m1[1] - m2[1],
+        m1[2] - m2[2],
+        m1[3] - m2[3]
     }
 end
 
--- Stole this from RosettaCode
-function multMat(m1,m2)
-    if #m1[1]~=#m2 then
+-- stole this from rosettacode
+function mult_mat(m1, m2)
+    if #m1[1] ~= #m2 then
         return nil
     end
 
-    local res={}
+    local res = {}
 
-    for i=1, #m1 do
-        res[i]={}
-        for j=1, #m2[1] do
-            res[i][j]=0
-            for k=1, #m2 do
-                res[i][j]=res[i][j]+m1[i][k]*m2[k][j]
+    for i = 1, #m1 do
+        res[i] = {}
+        for j = 1, #m2[1] do
+            res[i][j] = 0
+            for k = 1, #m2 do
+                res[i][j] = res[i][j] + m1[i][k] * m2[k][j]
             end
         end
     end
@@ -84,15 +80,15 @@ function multMat(m1,m2)
     return res
 end
 
--- For some reason, there is no tan() in the
+-- for some reason, there is no tan() in the
 -- standard library. *shrug*
 function tan(angle)
-    return sin(angle)/cos(angle)
+    return sin(angle) / cos(angle)
 end
 
--- END MATH SUPPORT
+-- end math support
 
--- ALGORITHM SUPPORT
+-- algorithm support
 function insert_node(head, new)
     local node = head
     repeat
@@ -121,184 +117,184 @@ function traverse(node, trifunc)
         traverse(node.right, trifunc)
     end
 end
--- END ALGORITHM SUPPORT
+-- end algorithm support
 
-function vetexVisible(vertex,cam)
-    local leftRight = vertex[1]>0 and vertex[1]<=screenWidth
-    local upDown = vertex[3]>0 and vertex[3]<=screenHeight
-    local distance = vertex[2]>cam.near and vertex[2]<cam.far
+function vetex_visible(vertex, cam)
+    local leftright = vertex[1] > 0 and vertex[1] <= c_screen_width
+    local updown = vertex[3] > 0 and vertex[3] <= c_screen_height
+    local distance = vertex[2] > cam.near and vertex[2] < cam.far
 
-    return leftRight and upDown and distance
+    return leftright and updown and distance
 end
 
-function makeRotationMatrix(rotation)
-    local xRot={
-        {1,               0,                  0,0},
-        {0,cos(rotation[1]),-1*sin(rotation[1]),0},
-        {0,sin(rotation[1]),   cos(rotation[1]),0},
-        {0,               0,                  0,1}
+function make_rotation_matrix(rotation)
+    local xrot = {
+        { 1,                0,                     0, 0 },
+        { 0, cos(rotation[1]), -1 * sin(rotation[1]), 0 },
+        { 0, sin(rotation[1]),      cos(rotation[1]), 0 },
+        { 0,                0,                     0, 1 }
     }
-    local yRot={
-        {   cos(rotation[2]),0,sin(rotation[2]),0},
-        {                  0,1,               0,0},
-        {-1*sin(rotation[2]),0,cos(rotation[2]),0},
-        {                  0,0,               0,1}
+    local yrot = {
+        {      cos(rotation[2]), 0, sin(rotation[2]), 0 },
+        {                     0, 1,                0, 0 },
+        { -1 * sin(rotation[2]), 0, cos(rotation[2]), 0 },
+        {                     0, 0,                0, 1 }
     }
-    local zRot={
-        {cos(rotation[3]),-1*sin(rotation[3]),0,0},
-        {sin(rotation[3]),   cos(rotation[3]),0,0},
-        {               0,                  0,1,0},
-        {               0,                  0,0,1}
+    local zrot = {
+        { cos(rotation[3]), -1 * sin(rotation[3]), 0, 0 },
+        { sin(rotation[3]),      cos(rotation[3]), 0, 0 },
+        {                0,                     0, 1, 0 },
+        {                0,                     0, 0, 1 }
     }
 
-    local rotationMat=multMat(xRot,yRot)
-    rotationMat=multMat(rotationMat,zRot)
+    local rotationmat = mult_mat(xrot, yrot)
+    rotationmat = mult_mat(rotationmat, zrot)
 
-    return rotationMat
+    return rotationmat
 end
 
 function project()
-    local tanFov=abs(tan(camera.fov/2))
-    local nearPlaneW=tanFov*camera.near
-    local farPlaneW=tanFov*camera.far
-    local pixelScale=screenWidth/(nearPlaneW*2)
+    local tanfov = abs(tan(g_camera.fov / 2))
+    local nearplanew = tanfov * g_camera.near
+    local farplanew = tanfov * g_camera.far
+    local pixelscale = c_screen_width / (nearplanew * 2)
 
-    local perspectiveSF=(farPlaneW-nearPlaneW)/(camera.far-camera.near)
+    local perspectivesf = (farplanew - nearplanew) / (g_camera.far - g_camera.near)
 
-    local cameraRot=makeRotationMatrix(camera.rot)
+    local camerarot = make_rotation_matrix(g_camera.rot)
 
-    cameraTran={
-        camera.loc[1]*-1,
-        camera.loc[2]*-1,
-        camera.loc[3]*-1,
+    camera_trans = {
+        g_camera.loc[1] * -1,
+        g_camera.loc[2] * -1,
+        g_camera.loc[3] * -1,
     }
 
-    local projectedModels={}
-    local projModI=1
+    local projected_models = {}
+    local proj_mod_idx = 1
 
-    for mi,model in pairs(models) do
-        local projectedModel={
-            vertices={},
-            faces={}
+    for mi, model in pairs(g_models) do
+        local projected_model = {
+            vertices = {},
+            faces = {}
         }
 
-        local modelRot = makeRotationMatrix(model.rot)
-        local modelLoc = add3131(cameraTran, model.loc)
+        local modelrot = make_rotation_matrix(model.rot)
+        local modelloc = add3131(camera_trans, model.loc)
 
-        for vi,vert in pairs(model.vertices) do
+        for vi, vert in pairs(model.vertices) do
             -- rotate relative to model center
-            local vertex=mult3144(vert, modelRot)
+            local vertex = mult3144(vert, modelrot)
 
             -- translate relative to camera
-            vertex=add3131(modelLoc, vertex)
+            vertex = add3131(modelloc, vertex)
 
             -- rotate relative to camera
-            vertex=mult3144(vertex, cameraRot)
+            vertex = mult3144(vertex, camerarot)
 
             -- perspective scaling
-            local scaleFactor=vertex[2]*perspectiveSF
-            vertex[1]/=scaleFactor
-            vertex[3]/=scaleFactor
+            local scalefactor = vertex[2] * perspectivesf
+            vertex[1] /= scalefactor
+            vertex[3] /= scalefactor
 
             -- clip-space projection
-            vertex[1]*=pixelScale
-            vertex[3]*=pixelScale
-            vertex[1]+=screenWidth/2
-            vertex[3]+=screenHeight/2
+            vertex[1] *= pixelscale
+            vertex[3] *= pixelscale
+            vertex[1] += c_screen_width / 2
+            vertex[3] += c_screen_height / 2
 
             -- flip z and y for convenience later
-            local z=vertex[3]
-            vertex[3]=vertex[2]
+            local z = vertex[3]
+            vertex[3] = vertex[2]
             -- lower y values are on top
-            vertex[2]=screenHeight-z
+            vertex[2] = c_screen_height - z
 
-            projectedModel.vertices[vi]=vertex
+            projected_model.vertices[vi] = vertex
         end
 
-        local faceI=1
-        for fi,face in pairs(model.faces) do
-            local v1=projectedModel.vertices[face[1]]
-            local v2=projectedModel.vertices[face[2]]
-            local v3=projectedModel.vertices[face[3]]
+        local facei = 1
+        for fi, face in pairs(model.faces) do
+            local v1 = projected_model.vertices[face[1]]
+            local v2 = projected_model.vertices[face[2]]
+            local v3 = projected_model.vertices[face[3]]
 
-            -- Note:: Normals here are not really correct.
-            -- They are just being rotated with the rest of the model.
-            -- This does not take into account any perspective skewing
-            -- or, in the future, vertex transformations. This should
-            -- be good enough for back-face culling, though. The main
+            -- note:: normals here are not really correct.
+            -- they are just being rotated with the rest of the model.
+            -- this does not take into account any perspective skewing
+            -- or, in the future, vertex transformations. this should
+            -- be good enough for back-face culling, though. the main
             -- problem it has is flat planes facing cardinal directions.
 
-            local normal=mult3144(model.normals[fi],modelRot)
-            normal=mult3144(normal,cameraRot)
+            local normal = mult3144(model.normals[fi], modelrot)
+            normal = mult3144(normal, camerarot)
 
-            if normal[2] <= 0 and(vetexVisible(v1,camera) or vetexVisible(v2,camera) or vetexVisible(v3,camera)) then
-                projectedModel.faces[faceI]=face
+            if normal[2] <= 0 and (vetex_visible(v1, g_camera) or vetex_visible(v2, g_camera) or vetex_visible(v3, g_camera)) then
+                projected_model.faces[facei] = face
 
-                local midX = (v1[1]+v2[1]+v3[1])/3
-                local midY = (v1[2]+v2[2]+v3[2])/3
-                local midZ = (v1[3]+v2[3]+v3[3])/3
+                local midx = (v1[1] + v2[1] + v3[1]) / 3
+                local midy = (v1[2] + v2[2] + v3[2]) / 3
+                local midz = (v1[3] + v2[3] + v3[3]) / 3
 
-                projectedModel.faces[faceI].distance = (midX*midX) + (midY*midY) + (midZ*midZ)
-                faceI+=1
+                projected_model.faces[facei].distance = (midx * midx) + (midy * midy) + (midz * midz)
+                facei += 1
             end
         end
 
-        projectedModels[projModI]=projectedModel
-        projModI+=1
+        projected_models[proj_mod_idx] = projected_model
+        proj_mod_idx += 1
     end
 
-    return projectedModels
+    return projected_models
 end
 
-function drawWirePolygon(v1,v2,v3,col)
-    line(v1[1],v1[2],v2[1],v2[2],col)
-    line(v2[1],v2[2],v3[1],v3[2],col)
-    line(v3[1],v3[2],v1[1],v1[2],col)
+function draw_wire_polygon(v1, v2, v3, col)
+    line(v1[1], v1[2], v2[1], v2[2], col)
+    line(v2[1], v2[2], v3[1], v3[2], col)
+    line(v3[1], v3[2], v1[1], v1[2], col)
 end
 
-function draw_span( mainX, offX, row, minX, maxX, color )
-    if offX < mainX then
-        -- "Main" and "off" lose their meaning here if we
-        -- need to swap. Oh, well.
-        local temp = offX
-        offX = mainX
-        mainX = temp
+function draw_span(mainx, offx, row, minx, maxx, color)
+    if offx < mainx then
+        -- "main" and "off" lose their meaning here if we
+        -- need to swap. oh, well.
+        local temp = offx
+        offx = mainx
+        mainx = temp
     end
 
-    local left = mainX > minX and mainX or minX
+    local left = mainx > minx and mainx or minx
     left = left >= 0 and left or 0
 
-    local right = offX < maxX and offX or maxX
-    right = right < screenWidth and right or screenWidth
+    local right = offx < maxx and offx or maxx
+    right = right < c_screen_width and right or c_screen_width
 
     for x=flr(left), flr(right) do
         pset(x,row,color)
     end
 end
 
-function draw_spans( mainX, offX, startY, endY, mainStepX, offStepX, color, minX, maxX, drawBottom )
-    assert( endY >= startY )
-    startY = flr( startY )
-    endY = flr( endY )
-    if not drawBottom then endY-=1 end
-    if endY < startY then endY=startY end
+function draw_spans(mainx, offx, starty, endy, mainstepx, offstepx, color, minx, maxx, drawbottom)
+    assert(endy >= starty)
+    starty = flr(starty)
+    endy = flr(endy)
+    if not drawbottom then endy -= 1 end
+    if endy < starty then endy = starty end
 
-    for row = startY, endY do
-        if row >= screenHeight then
+    for row = starty, endy do
+        if row >= c_screen_height then
             break
         end
         if row >= 0 then
-            draw_span( mainX, offX, row, minX, maxX, color )
+            draw_span(mainx, offx, row, minx, maxx, color)
         end
-        mainX += mainStepX
-        offX += offStepX
+        mainx += mainstepx
+        offx += offstepx
     end
 
-    return mainX
+    return mainx
 end
 
-function draw_triangle( face, v1, v2, v3 )
-    -- For convenience, store the vertex components in nicer names.
+function draw_triangle(face, v1, v2, v3)
+    -- for convenience, store the vertex components in nicer names.
     v1.x = v1[ 1 ]
     v1.y = v1[ 2 ]
     v1.z = v1[ 3 ]
@@ -309,22 +305,22 @@ function draw_triangle( face, v1, v2, v3 )
     v3.y = v3[ 2 ]
     v3.z = v3[ 3 ]
 
-    local color=face[4] -- TODO Textures
+    local color = face[4] -- todo textures
 
-    -- Find the topmost vertex. "Topmost" means highest Y in clip space.
+    -- find the topmost vertex. "topmost" means highest y in clip space.
     local topmost = v1.y < v2.y and v1 or v2
     topmost = topmost.y < v3.y and topmost or v3
 
-    -- Find the bottommost vertex. "Bottommost" means lowest Y in clip space.
+    -- find the bottommost vertex. "bottommost" means lowest y in clip space.
     local bottommost = v1.y > v2.y and v1 or v2
     bottommost = bottommost.y > v3.y and bottommost or v3
 
     if topmost.y == bottommost.y then
-        -- todo: It's a horizontal line
+        -- todo: it's a horizontal line
         return
     end
 
-    -- "Midpoint" is a slight misnomer, as it is not centered and may even be
+    -- "midpoint" is a slight misnomer, as it is not centered and may even be
     -- level with the top or bottom points.
     local midpoint = v1
     if midpoint == topmost or midpoint == bottommost then
@@ -334,206 +330,201 @@ function draw_triangle( face, v1, v2, v3 )
         midpoint = v3
     end
 
-    -- Traverse from topmost to bottommost
-    -- "Main" in this context means, "Along or related to the edge with the biggest range."
-    -- "Off" in the context means, "Along the edge from a main vertex to the mid vertex."
-    local mainStepX = (bottommost.x - topmost.x) / (bottommost.y - topmost.y)
-    local mainX = topmost.x
+    -- traverse from topmost to bottommost
+    -- "main" in this context means, "along or related to the edge with the biggest range."
+    -- "off" in the context means, "along the edge from a main vertex to the mid vertex."
+    local mainstepx = (bottommost.x - topmost.x) / (bottommost.y - topmost.y)
+    local mainx = topmost.x
 
-    local hastop = flr(midpoint.y) > flr(topmost.y)
-    local hasbottom = flr(bottommost.y) > flr(midpoint.y)
+    local has_top = flr(midpoint.y) > flr(topmost.y)
+    local has_bottom = flr(bottommost.y) > flr(midpoint.y)
 
-    local minX = v1.x < v2.x and v1.x or v2.x
-    minX = minX < v3.x and minX or v3.x
+    local minx = v1.x < v2.x and v1.x or v2.x
+    minx = minx < v3.x and minx or v3.x
 
 
-    local maxX = v1.x > v2.x and v1.x or v2.x
-    maxX = maxX > v3.x and maxX or v3.x
+    local maxx = v1.x > v2.x and v1.x or v2.x
+    maxx = maxx > v3.x and maxx or v3.x
 
-    -- "Midpoint" may actually be at our same Y. If it is, skip the top "half"
-    if hastop then
-        local offStepX = (midpoint.x - topmost.x) / (midpoint.y - topmost.y)
-        local offX = topmost.x
-        mainX = draw_spans(mainX, offX, topmost.y, midpoint.y, mainStepX, offStepX, color, minX, maxX, not hasbottom)
+    -- "midpoint" may actually be at our same y. if it is, skip the top "half"
+    if has_top then
+        local offstepx = (midpoint.x - topmost.x) / (midpoint.y - topmost.y)
+        local offx = topmost.x
+        mainx = draw_spans(mainx, offx, topmost.y, midpoint.y, mainstepx, offstepx, color, minx, maxx, not has_bottom)
     end
 
-    -- Now draw the bottom "half" if applicable
-    if hasbottom then
-        local offX = midpoint.x
-        local offStepX = (bottommost.x - midpoint.x) / (bottommost.y - midpoint.y)
-        draw_spans(mainX, offX, midpoint.y, bottommost.y, mainStepX, offStepX, color, minX, maxX, true)
+    -- now draw the bottom "half" if applicable
+    if has_bottom then
+        local offx = midpoint.x
+        local offstepx = (bottommost.x - midpoint.x) / (bottommost.y - midpoint.y)
+        draw_spans(mainx, offx, midpoint.y, bottommost.y, mainstepx, offstepx, color, minx, maxx, true)
     end
 end
 
-function draw3D()
-    local projectedModels = project()
+function draw3d()
+    local projected_models = project()
 
-    if filled then
+    if g_filled then
         -- dump projected triangles to a binary tree
-        local headnode = nil
-        for mi,model in pairs(projectedModels) do
-            for fi,face in pairs(model.faces) do
+        local head_node = nil
+        for mi, model in pairs(projected_models) do
+            for fi, face in pairs(model.faces) do
                 local node = {
-                    triangle={
-                        face=face,
-                        v1=model.vertices[face[1]],
-                        v2=model.vertices[face[2]],
-                        v3=model.vertices[face[3]]
+                    triangle = {
+                        face = face,
+                        v1 = model.vertices[face[1]],
+                        v2 = model.vertices[face[2]],
+                        v3 = model.vertices[face[3]]
                     },
-                    left=nil,
-                    right=nil
+                    left = nil,
+                    right = nil
                 }
 
-                if headnode == nil then
-                    headnode = node
+                if head_node == nil then
+                    head_node = node
                 else
-                    insert_node(headnode,node)
+                    insert_node(head_node,node)
                 end
             end
         end
 
-        traverse(headnode, function(triangle)
-            draw_triangle(triangle.face,triangle.v1,triangle.v2,triangle.v3)
-        end)
+        traverse(head_node,
+            function(triangle)
+                draw_triangle(triangle.face,triangle.v1,triangle.v2,triangle.v3)
+            end
+        )
     end
 
-    if wireframe then
-        for _,model in pairs(projectedModels) do
-            for _,face in pairs(model.faces) do
-                drawWirePolygon(model.vertices[face[1]],model.vertices[face[2]],model.vertices[face[3]],face[4])
+    if g_wireframe then
+        for _, model in pairs(projected_models) do
+            for _, face in pairs(model.faces) do
+                draw_wire_polygon(model.vertices[face[1]], model.vertices[face[2]], model.vertices[face[3]], face[4])
             end
         end
     end
 end
 
-models = {
+g_models = {
     {
-        vertices={
-            {-5,-5, 0},
-            {-5, 5, 0},
-            { 5, 5, 0},
-            { 5,-5, 0},
-            { 0, 0,10},
+        vertices = {
+            { -5, -5,  0 },
+            { -5,  5,  0 },
+            {  5,  5,  0 },
+            {  5, -5,  0 },
+            {  0,  0, 10 },
         },
-        faces={
-            {1,5,2,10},
-            {2,5,3,11},
-            {3,5,4,12},
-            {4,5,1,13},
-            {1,2,3,14},
-            {3,4,1,15},
+        faces = {
+            { 1, 5, 2, 10 },
+            { 2, 5, 3, 11 },
+            { 3, 5, 4, 12 },
+            { 4, 5, 1, 13 },
+            { 1, 2, 3, 14 },
+            { 3, 4, 1, 15 },
         },
-        normals={
-            {-1, 0, 0,},
-            { 0, 1, 0,},
-            { 1, 0, 0,},
-            { 0,-1, 0,},
-            { 0, 0,-1,},
-            { 0, 0,-1,},
+        normals = {
+            { -1,  0,  0, },
+            {  0,  1,  0, },
+            {  1,  0,  0, },
+            {  0, -1,  0, },
+            {  0,  0, -1, },
+            {  0,  0, -1, },
         },
-        loc={0,30,0},
-        rot={0,0,0}
+        loc = { 0, 30, 0 },
+        rot = { 0,  0, 0 }
     },
     {
-        vertices={
-            {-5,-5, 0},
-            {-5, 5, 0},
-            { 5, 5, 0},
-            { 5,-5, 0},
-            {-5,-5,10},
-            {-5, 5,10},
-            { 5, 5,10},
-            { 5,-5,10},
+        vertices = {
+            { -5, -5,  0 },
+            { -5,  5,  0 },
+            {  5,  5,  0 },
+            {  5, -5,  0 },
+            { -5, -5, 10 },
+            { -5,  5, 10 },
+            {  5,  5, 10 },
+            {  5, -5, 10 },
         },
-        faces={
-            {1,2,3, 1}, --bottom
-            {3,4,1, 2}, --
-            {5,6,7, 3}, --top
-            {7,8,5, 4}, --
-            {5,8,1, 5}, --front
-            {4,1,8, 6}, --
-            {6,5,1, 7}, --left
-            {1,2,6, 8}, --
-            {2,3,7, 9}, --back
-            {7,6,2,10}, --
-            {3,4,8,11}, --right
-            {8,7,3,12}, --
+        faces = {
+            { 1, 2, 3,  1 }, --bottom
+            { 3, 4, 1,  2 }, --
+            { 5, 6, 7,  3 }, --top
+            { 7, 8, 5,  4 }, --
+            { 5, 8, 1,  5 }, --front
+            { 4, 1, 8,  6 }, --
+            { 6, 5, 1,  7 }, --left
+            { 1, 2, 6,  8 }, --
+            { 2, 3, 7,  9 }, --back
+            { 7, 6, 2, 10 }, --
+            { 3, 4, 8, 11 }, --right
+            { 8, 7, 3, 12 }, --
         },
-        normals={
-            { 0, 0,-1},
-            { 0, 0,-1},
-            { 0, 0, 1},
-            { 0, 0, 1},
-            { 0,-1, 0},
-            { 0,-1, 0},
-            {-1, 0, 0},
-            {-1, 0, 0},
-            { 0, 1, 0},
-            { 0, 1, 0},
-            { 1, 0, 0},
-            { 1, 0, 0},
+        normals = {
+            {  0,  0, -1 },
+            {  0,  0, -1 },
+            {  0,  0,  1 },
+            {  0,  0,  1 },
+            {  0, -1,  0 },
+            {  0, -1,  0 },
+            { -1,  0,  0 },
+            { -1,  0,  0 },
+            {  0,  1,  0 },
+            {  0,  1,  0 },
+            {  1,  0,  0 },
+            {  1,  0,  0 },
         },
-        loc={20,30,0},
-        rot={0,0,0}
+        loc = { 20, 30, 0 },
+        rot = { 0,   0, 0 }
     }
 }
 
-camera={
-    loc={0,-15,15},
-    rot={0,0,.05},
-    fov=60/360,
-    near=1,
-    far=100
+g_camera = {
+    loc = { 0, -15,  15 },
+    rot = { 0,   0, .05 },
+    fov = 60 / 360,
+    near = 1,
+    far = 100
 }
 
 function _update60()
-    models[1].rot[3]=(models[1].rot[3]+0.005)%1
-    models[2].rot[3]=(models[2].rot[3]+0.0025)%1
+    g_models[1].rot[3] = (g_models[1].rot[3] + 0.005) % 1
+    g_models[2].rot[3] = (g_models[2].rot[3] + 0.0025) % 1
 
-    local moveVector={0,0,0}
+    local move_vector = { 0, 0, 0 }
 
-    rotSpeed = .005
-    moveSpeed=.2
+    rot_speed = .005
+    movespeed = .2
 
     if btn(0) then
-        camera.rot[3] = (camera.rot[3]-rotSpeed%1)
+        g_camera.rot[3] = (g_camera.rot[3] - rot_speed % 1)
     end
     if btn(1) then
-        camera.rot[3] = (camera.rot[3]+rotSpeed%1)
+        g_camera.rot[3] = (g_camera.rot[3] + rot_speed % 1)
     end
     if btn(2) then
-        moveVector[2]=moveSpeed
+        move_vector[2] = movespeed
     end
     if btn(3) then
-        moveVector[2]=moveSpeed*-1
+        move_vector[2] = movespeed * -1
     end
     if btn(4) then
-        moveVector[1]=moveSpeed*-1
+        move_vector[1] = movespeed * -1
     end
     if btn(5) then
-        moveVector[1]=moveSpeed
+        move_vector[1] = movespeed
     end
 
-    local viewRot=makeRotationMatrix({0,0,camera.rot[3]*-1})
-    camera.loc=add3131(camera.loc,mult3144(moveVector,viewRot))
+    local view_rot = make_rotation_matrix({ 0, 0, g_camera.rot[3] * -1 })
+    g_camera.loc = add3131(g_camera.loc, mult3144(move_vector, view_rot))
 
-    if btnp(5,1) then
-        wireframe=not wireframe
-        filled=not filled
+    if btnp(5, 1) then
+        g_wireframe = not g_wireframe
+        g_filled = not g_filled
     end
 end
 
 function _draw()
     cls()
-    draw3D()
+    draw3d()
 end
-
---testface = {0,0,0,12}
---tv1 = {0,29,0}
---tv2 = {30,30,0}
---tv3 = {30,59,0}
---cls()
---draw_triangle(testface,tv1,tv2,tv3)
 
 __gfx__
 ccc11111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -831,3 +822,4 @@ __music__
 00 41424344
 00 41424344
 00 41424344
+
