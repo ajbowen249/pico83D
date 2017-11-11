@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 8
+version 14
 __lua__
 -- pico-8 3d engine
 -- alex bowen
@@ -21,105 +21,130 @@ c_screen_height = 128
 c_screen_width = 128
 --end constants
 
--- math support
-
--- multiplies a vertx by a 4x4 matrix,
--- assumes vertex is homogeneous with a
--- w-value of 1
-function mult_v_44(vertex, m44)
-    local new_vertex = {
-        x = (vertex.x * m44[1][1]) + (vertex.y * m44[2][1]) + (vertex.z * m44[3][1]) + m44[4][1],
-        y = (vertex.x * m44[1][2]) + (vertex.y * m44[2][2]) + (vertex.z * m44[3][2]) + m44[4][2],
-        z = (vertex.x * m44[1][3]) + (vertex.y * m44[2][3]) + (vertex.z * m44[3][3]) + m44[4][3],
+g_models = {
+    {
+        vertices = {
+            { x = -5, y = -5, z =  0 },
+            { x = -5, y =  5, z =  0 },
+            { x =  5, y =  5, z =  0 },
+            { x =  5, y = -5, z =  0 },
+            { x =  0, y =  0, z = 10 },
+        },
+        faces = {
+            { 1, 5, 2, 10 },
+            { 2, 5, 3, 11 },
+            { 3, 5, 4, 12 },
+            { 4, 5, 1, 13 },
+            { 1, 2, 3, 14 },
+            { 3, 4, 1, 15 },
+        },
+        normals = {
+            { x = -1, y =  0, z =  0, },
+            { x =  0, y =  1, z =  0, },
+            { x =  1, y =  0, z =  0, },
+            { x =  0, y = -1, z =  0, },
+            { x =  0, y =  0, z = -1, },
+            { x =  0, y =  0, z = -1, },
+        },
+        loc = { x = 0, y = 30, z = 0 },
+        rot = { x = 0, y =  0, z = 0 }
+    },
+    {
+        vertices = {
+            { x = -5, y = -5, z =  0 },
+            { x = -5, y =  5, z =  0 },
+            { x =  5, y =  5, z =  0 },
+            { x =  5, y = -5, z =  0 },
+            { x = -5, y = -5, z = 10 },
+            { x = -5, y =  5, z = 10 },
+            { x =  5, y =  5, z = 10 },
+            { x =  5, y = -5, z = 10 },
+        },
+        faces = {
+            { 1, 2, 3,  1 }, --bottom
+            { 3, 4, 1,  2 }, --
+            { 5, 6, 7,  3 }, --top
+            { 7, 8, 5,  4 }, --
+            { 5, 8, 1,  5 }, --front
+            { 4, 1, 8,  6 }, --
+            { 6, 5, 1,  7 }, --left
+            { 1, 2, 6,  8 }, --
+            { 2, 3, 7,  9 }, --back
+            { 7, 6, 2, 10 }, --
+            { 3, 4, 8, 11 }, --right
+            { 8, 7, 3, 12 }, --
+        },
+        normals = {
+            { x =  0, y =  0, z = -1 },
+            { x =  0, y =  0, z = -1 },
+            { x =  0, y =  0, z =  1 },
+            { x =  0, y =  0, z =  1 },
+            { x =  0, y = -1, z =  0 },
+            { x =  0, y = -1, z =  0 },
+            { x = -1, y =  0, z =  0 },
+            { x = -1, y =  0, z =  0 },
+            { x =  0, y =  1, z =  0 },
+            { x =  0, y =  1, z =  0 },
+            { x =  1, y =  0, z =  0 },
+            { x =  1, y =  0, z =  0 },
+        },
+        loc = { x = 20, y = 30, z = 0 },
+        rot = { x =  0, y =  0, z = 0 }
     }
+}
 
-    local w = (vertex.x * m44[1][4]) + (vertex.y * m44[2][4]) + (vertex.z * m44[3][4]) + m44[4][4]
+g_camera = {
+    loc = { x = 0, y = -15, z =  15 },
+    rot = { x = 0, y =   0, z = .05 },
+    fov = 60 / 360,
+    near = 1,
+    far = 100
+}
 
-    if w != 1 and w != 0 then
-       mat.x /= w
-       mat.y /= w
-       mat.z /= w
+function _update60()
+    g_models[1].rot.z = (g_models[1].rot.z + 0.005) % 1
+    g_models[2].rot.z = (g_models[2].rot.z + 0.0025) % 1
+
+    local move_vector = { x = 0, y = 0, z = 0 }
+
+    rot_speed = .005
+    movespeed = .2
+
+    if btn(0) then
+        g_camera.rot.z = (g_camera.rot.z - rot_speed % 1)
+    end
+    if btn(1) then
+        g_camera.rot.z = (g_camera.rot.z + rot_speed % 1)
+    end
+    if btn(2) then
+        move_vector.y = movespeed
+    end
+    if btn(3) then
+        move_vector.y = movespeed * -1
+    end
+    if btn(4) then
+        move_vector.x = movespeed * -1
+    end
+    if btn(5) then
+        move_vector.x = movespeed
     end
 
-    return new_vertex
-end
+    local view_rot = make_rotation_matrix({ x = 0, y = 0, z = g_camera.rot.z * -1 })
+    g_camera.loc = add_v_v(g_camera.loc, mult_v_44(move_vector, view_rot))
 
-function add_v_v(v1, v2)
-    return {
-        x = v1.x + v2.x,
-        y = v1.y + v2.y,
-        z = v1.z + v2.z
-    }
-end
-
-function sub_v_v(v1, v2)
-    return {
-        x = v1.x - v2.x,
-        y = v1.y - v2.y,
-        z = v1.z - v2.z
-    }
-end
-
--- stole this from rosettacode
-function mult_mat(m1, m2)
-    if #m1[1] ~= #m2 then
-        return nil
-    end
-
-    local res = {}
-
-    for i = 1, #m1 do
-        res[i] = {}
-        for j = 1, #m2[1] do
-            res[i][j] = 0
-            for k = 1, #m2 do
-                res[i][j] = res[i][j] + m1[i][k] * m2[k][j]
-            end
-        end
-    end
-
-    return res
-end
-
--- for some reason, there is no tan() in the
--- standard library. *shrug*
-function tan(angle)
-    return sin(angle) / cos(angle)
-end
-
--- end math support
-
--- algorithm support
-function insert_node(head, new)
-    local node = head
-    repeat
-        if new.triangle.face.distance > node.triangle.face.distance then
-            if node.left == nil then
-                node.left = new
-                return
-            else
-                node = node.left
-            end
-        else
-            if node.right == nil then
-                node.right = new
-                return
-            else
-                node = node.right
-            end
-        end
-    until false
-end
-
-function traverse(node, trifunc)
-    if node != nil then
-        traverse(node.left, trifunc)
-        trifunc(node.triangle)
-        traverse(node.right, trifunc)
+    if btnp(5, 1) then
+        g_wireframe = not g_wireframe
+        g_filled = not g_filled
     end
 end
--- end algorithm support
 
+function _draw()
+    cls()
+    draw3d()
+end
+
+-->8
+--3D projection and drawing
 function vetex_visible(vertex, cam)
     local leftright = vertex.x > 0 and vertex.x <= c_screen_width
     local updown = vertex.z > 0 and vertex.z <= c_screen_height
@@ -394,126 +419,100 @@ function draw3d()
     end
 end
 
-g_models = {
-    {
-        vertices = {
-            { x = -5, y = -5, z =  0 },
-            { x = -5, y =  5, z =  0 },
-            { x =  5, y =  5, z =  0 },
-            { x =  5, y = -5, z =  0 },
-            { x =  0, y =  0, z = 10 },
-        },
-        faces = {
-            { 1, 5, 2, 10 },
-            { 2, 5, 3, 11 },
-            { 3, 5, 4, 12 },
-            { 4, 5, 1, 13 },
-            { 1, 2, 3, 14 },
-            { 3, 4, 1, 15 },
-        },
-        normals = {
-            { x = -1, y =  0, z =  0, },
-            { x =  0, y =  1, z =  0, },
-            { x =  1, y =  0, z =  0, },
-            { x =  0, y = -1, z =  0, },
-            { x =  0, y =  0, z = -1, },
-            { x =  0, y =  0, z = -1, },
-        },
-        loc = { x = 0, y = 30, z = 0 },
-        rot = { x = 0, y =  0, z = 0 }
-    },
-    {
-        vertices = {
-            { x = -5, y = -5, z =  0 },
-            { x = -5, y =  5, z =  0 },
-            { x =  5, y =  5, z =  0 },
-            { x =  5, y = -5, z =  0 },
-            { x = -5, y = -5, z = 10 },
-            { x = -5, y =  5, z = 10 },
-            { x =  5, y =  5, z = 10 },
-            { x =  5, y = -5, z = 10 },
-        },
-        faces = {
-            { 1, 2, 3,  1 }, --bottom
-            { 3, 4, 1,  2 }, --
-            { 5, 6, 7,  3 }, --top
-            { 7, 8, 5,  4 }, --
-            { 5, 8, 1,  5 }, --front
-            { 4, 1, 8,  6 }, --
-            { 6, 5, 1,  7 }, --left
-            { 1, 2, 6,  8 }, --
-            { 2, 3, 7,  9 }, --back
-            { 7, 6, 2, 10 }, --
-            { 3, 4, 8, 11 }, --right
-            { 8, 7, 3, 12 }, --
-        },
-        normals = {
-            { x =  0, y =  0, z = -1 },
-            { x =  0, y =  0, z = -1 },
-            { x =  0, y =  0, z =  1 },
-            { x =  0, y =  0, z =  1 },
-            { x =  0, y = -1, z =  0 },
-            { x =  0, y = -1, z =  0 },
-            { x = -1, y =  0, z =  0 },
-            { x = -1, y =  0, z =  0 },
-            { x =  0, y =  1, z =  0 },
-            { x =  0, y =  1, z =  0 },
-            { x =  1, y =  0, z =  0 },
-            { x =  1, y =  0, z =  0 },
-        },
-        loc = { x = 20, y = 30, z = 0 },
-        rot = { x =  0, y =  0, z = 0 }
+-->8
+-- math and algorithem support
+
+-- multiplies a vertx by a 4x4 matrix,
+-- assumes vertex is homogeneous with a
+-- w-value of 1
+function mult_v_44(vertex, m44)
+    local new_vertex = {
+        x = (vertex.x * m44[1][1]) + (vertex.y * m44[2][1]) + (vertex.z * m44[3][1]) + m44[4][1],
+        y = (vertex.x * m44[1][2]) + (vertex.y * m44[2][2]) + (vertex.z * m44[3][2]) + m44[4][2],
+        z = (vertex.x * m44[1][3]) + (vertex.y * m44[2][3]) + (vertex.z * m44[3][3]) + m44[4][3],
     }
-}
 
-g_camera = {
-    loc = { x = 0, y = -15, z =  15 },
-    rot = { x = 0, y =   0, z = .05 },
-    fov = 60 / 360,
-    near = 1,
-    far = 100
-}
+    local w = (vertex.x * m44[1][4]) + (vertex.y * m44[2][4]) + (vertex.z * m44[3][4]) + m44[4][4]
 
-function _update60()
-    g_models[1].rot.z = (g_models[1].rot.z + 0.005) % 1
-    g_models[2].rot.z = (g_models[2].rot.z + 0.0025) % 1
-
-    local move_vector = { x = 0, y = 0, z = 0 }
-
-    rot_speed = .005
-    movespeed = .2
-
-    if btn(0) then
-        g_camera.rot.z = (g_camera.rot.z - rot_speed % 1)
-    end
-    if btn(1) then
-        g_camera.rot.z = (g_camera.rot.z + rot_speed % 1)
-    end
-    if btn(2) then
-        move_vector.y = movespeed
-    end
-    if btn(3) then
-        move_vector.y = movespeed * -1
-    end
-    if btn(4) then
-        move_vector.x = movespeed * -1
-    end
-    if btn(5) then
-        move_vector.x = movespeed
+    if w != 1 and w != 0 then
+       mat.x /= w
+       mat.y /= w
+       mat.z /= w
     end
 
-    local view_rot = make_rotation_matrix({ x = 0, y = 0, z = g_camera.rot.z * -1 })
-    g_camera.loc = add_v_v(g_camera.loc, mult_v_44(move_vector, view_rot))
-
-    if btnp(5, 1) then
-        g_wireframe = not g_wireframe
-        g_filled = not g_filled
-    end
+    return new_vertex
 end
 
-function _draw()
-    cls()
-    draw3d()
+function add_v_v(v1, v2)
+    return {
+        x = v1.x + v2.x,
+        y = v1.y + v2.y,
+        z = v1.z + v2.z
+    }
+end
+
+function sub_v_v(v1, v2)
+    return {
+        x = v1.x - v2.x,
+        y = v1.y - v2.y,
+        z = v1.z - v2.z
+    }
+end
+
+-- stole this from rosettacode
+function mult_mat(m1, m2)
+    if #m1[1] ~= #m2 then
+        return nil
+    end
+
+    local res = {}
+
+    for i = 1, #m1 do
+        res[i] = {}
+        for j = 1, #m2[1] do
+            res[i][j] = 0
+            for k = 1, #m2 do
+                res[i][j] = res[i][j] + m1[i][k] * m2[k][j]
+            end
+        end
+    end
+
+    return res
+end
+
+-- for some reason, there is no tan() in the
+-- standard library. *shrug*
+function tan(angle)
+    return sin(angle) / cos(angle)
+end
+
+function insert_node(head, new)
+    local node = head
+    repeat
+        if new.triangle.face.distance > node.triangle.face.distance then
+            if node.left == nil then
+                node.left = new
+                return
+            else
+                node = node.left
+            end
+        else
+            if node.right == nil then
+                node.right = new
+                return
+            else
+                node = node.right
+            end
+        end
+    until false
+end
+
+function traverse(node, trifunc)
+    if node != nil then
+        traverse(node.left, trifunc)
+        trifunc(node.triangle)
+        traverse(node.right, trifunc)
+    end
 end
 
 __gfx__
