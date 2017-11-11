@@ -179,7 +179,7 @@ function make_rotation_matrix(rotation)
     return rotationmat
 end
 
-function project(camera, models)
+function project(camera, models, emit_triangle)
     local tanfov = abs(tan(camera.fov / 2))
     local nearplanew = tanfov * camera.near
     local farplanew = tanfov * camera.far
@@ -195,14 +195,8 @@ function project(camera, models)
         z = camera.loc.z * -1,
     }
 
-    local projected_models = {}
-    local proj_mod_idx = 1
-
     for mi, model in pairs(models) do
-        local projected_model = {
-            vertices = {},
-            faces = {}
-        }
+        local projected_vertices = { }
 
         local modelrot = make_rotation_matrix(model.rot)
         local modelloc = add_v_v(camera_trans, model.loc)
@@ -222,6 +216,8 @@ function project(camera, models)
             vertex.x /= scalefactor
             vertex.z /= scalefactor
 
+            --TODO: move clip-space projection to the draw routines
+
             -- clip-space projection
             vertex.x *= pixelscale
             vertex.z *= pixelscale
@@ -234,14 +230,14 @@ function project(camera, models)
             -- lower y values are on top
             vertex.y = c_screen_height - z
 
-            projected_model.vertices[vi] = vertex
+            projected_vertices[vi] = vertex
         end
 
         local facei = 1
         for fi, face in pairs(model.faces) do
-            local v1 = projected_model.vertices[face[1]]
-            local v2 = projected_model.vertices[face[2]]
-            local v3 = projected_model.vertices[face[3]]
+            local v1 = projected_vertices[face[1]]
+            local v2 = projected_vertices[face[2]]
+            local v3 = projected_vertices[face[3]]
 
             -- note:: normals here are not really correct.
             -- they are just being rotated with the rest of the model.
@@ -254,25 +250,23 @@ function project(camera, models)
             normal = mult_v_44(normal, camerarot)
 
             if normal.y <= 0 and (vetex_visible(v1, camera) or vetex_visible(v2, camera) or vetex_visible(v3, camera)) then
-                projected_model.faces[facei] = face
-
                 local midx = (v1.x + v2.x + v3.x) / 3
                 local midy = (v1.y + v2.y + v3.y) / 3
                 local midz = (v1.z + v2.z + v3.z) / 3
 
-                projected_model.faces[facei].distance = (midx * midx) + (midy * midy) + (midz * midz)
-                facei += 1
+                emit_triangle({
+                    color = face[4],
+                    distance = (midx * midx) + (midy * midy) + (midz * midz),
+                    v1 = projected_vertices[face[1]],
+                    v2 = projected_vertices[face[2]],
+                    v3 = projected_vertices[face[3]]
+                })
             end
         end
-
-        projected_models[proj_mod_idx] = projected_model
-        proj_mod_idx += 1
     end
-
-    return projected_models
 end
 
-function draw_wire_polygon(v1, v2, v3, col)
+function draw_wire_polygon(col, v1, v2, v3)
     line(v1.x, v1.y, v2.x, v2.y, col)
     line(v2.x, v2.y, v3.x, v3.y, col)
     line(v3.x, v3.y, v1.x, v1.y, col)
@@ -319,9 +313,7 @@ function draw_spans(mainx, offx, starty, endy, mainstepx, offstepx, color, minx,
     return mainx
 end
 
-function draw_triangle(face, v1, v2, v3)
-    local color = face[4] -- todo textures
-
+function draw_triangle(color, v1, v2, v3)
     -- find the topmost vertex. "topmost" means highest y in clip space.
     local topmost = v1.y < v2.y and v1 or v2
     topmost = topmost.y < v3.y and topmost or v3
@@ -377,45 +369,31 @@ function draw_triangle(face, v1, v2, v3)
 end
 
 function draw3d()
-    local projected_models = project(g_camera, g_models)
+    local head_node = nil
+    project(g_camera, g_models, function(triangle)
+        local node = {
+            triangle = triangle,
+            left = nil,
+            right = nil
+        }
+
+        if head_node == nil then
+            head_node = node
+        else
+            insert_node(head_node,node)
+        end
+    end)
 
     if g_filled then
-        -- dump projected triangles to a binary tree
-        local head_node = nil
-        for mi, model in pairs(projected_models) do
-            for fi, face in pairs(model.faces) do
-                local node = {
-                    triangle = {
-                        face = face,
-                        v1 = model.vertices[face[1]],
-                        v2 = model.vertices[face[2]],
-                        v3 = model.vertices[face[3]]
-                    },
-                    left = nil,
-                    right = nil
-                }
-
-                if head_node == nil then
-                    head_node = node
-                else
-                    insert_node(head_node,node)
-                end
-            end
-        end
-
-        traverse(head_node,
-            function(triangle)
-                draw_triangle(triangle.face, triangle.v1, triangle.v2, triangle.v3)
-            end
-        )
+        traverse(head_node, function(triangle)
+            draw_triangle(triangle.color, triangle.v1, triangle.v2, triangle.v3)
+        end)
     end
 
     if g_wireframe then
-        for _, model in pairs(projected_models) do
-            for _, face in pairs(model.faces) do
-                draw_wire_polygon(model.vertices[face[1]], model.vertices[face[2]], model.vertices[face[3]], face[4])
-            end
-        end
+        traverse(head_node, function(triangle)
+            draw_wire_polygon(triangle.color, triangle.v1, triangle.v2, triangle.v3)
+        end)
     end
 end
 
@@ -489,7 +467,7 @@ end
 function insert_node(head, new)
     local node = head
     repeat
-        if new.triangle.face.distance > node.triangle.face.distance then
+        if new.triangle.distance > node.triangle.distance then
             if node.left == nil then
                 node.left = new
                 return
