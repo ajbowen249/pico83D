@@ -488,6 +488,50 @@ function traverse(node, trifunc)
     end
 end
 
+-->
+-- asset library parser
+-- this is intented to take some dead-simple
+-- non-huma-readable serialized models and store
+-- them into an "asset library" to be pulled
+-- from at runtime.
+
+-- the whole library is given as a comma-separted
+-- list. the first value is the name of the asset.
+-- after that is the vertex count, then the face
+-- count. the parser extpects the next set of
+-- values (3 x number of vertices) to be vertex
+-- data. It then expects the following set to be
+-- face data ((3 + 3 + 1) * number of faces, three
+-- indices, a normal vector, and a color).
+function tokenize(library, visitor)
+    local index = 1
+    local length = #library
+
+    repeat
+        if index > length then
+            return
+        end
+
+        local start = index
+        local endi = index
+
+        repeat endi += 1
+        until sub(library, endi, endi) == "," or endi > length
+
+        -- go past the comma
+        index = endi + 1
+        -- -1 to go back to the actual index
+        visitor(sub(library, start, endi-1))
+    until false
+end
+
+function parse_asset_library(library)
+    tokenize(library, function(token)
+        -- temporary
+        print(token)
+    end)
+end
+
 __gfx__
 ccc11111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 cc177111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
