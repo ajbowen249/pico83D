@@ -11,99 +11,44 @@ __lua__
 -- up being a great resource. link:
 -- https://www.scratchapixel.com/index.php?redirect
 
--- settings
-g_wireframe = false
-g_filled = true
--- end settings
+function _init()
+    -- settings
+    g_wireframe = false
+    g_filled = true
+    -- end settings
 
---constants
-c_screen_height = 128
-c_screen_width = 128
---end constants
+    --constants
+    c_screen_height = 128
+    c_screen_width = 128
+    --end constants
 
-g_models = {
-    {
-        vertices = {
-            { x = -5, y = -5, z =  0 },
-            { x = -5, y =  5, z =  0 },
-            { x =  5, y =  5, z =  0 },
-            { x =  5, y = -5, z =  0 },
-            { x =  0, y =  0, z = 10 },
-        },
-        faces = {
-            { 1, 5, 2, 10 },
-            { 2, 5, 3, 11 },
-            { 3, 5, 4, 12 },
-            { 4, 5, 1, 13 },
-            { 1, 2, 3, 14 },
-            { 3, 4, 1, 15 },
-        },
-        normals = {
-            { x = -1, y =  0, z =  0, },
-            { x =  0, y =  1, z =  0, },
-            { x =  1, y =  0, z =  0, },
-            { x =  0, y = -1, z =  0, },
-            { x =  0, y =  0, z = -1, },
-            { x =  0, y =  0, z = -1, },
-        },
-        loc = { x = 0, y = 30, z = 0 },
-        rot = { x = 0, y =  0, z = 0 }
-    },
-    {
-        vertices = {
-            { x = -5, y = -5, z =  0 },
-            { x = -5, y =  5, z =  0 },
-            { x =  5, y =  5, z =  0 },
-            { x =  5, y = -5, z =  0 },
-            { x = -5, y = -5, z = 10 },
-            { x = -5, y =  5, z = 10 },
-            { x =  5, y =  5, z = 10 },
-            { x =  5, y = -5, z = 10 },
-        },
-        faces = {
-            { 1, 2, 3,  1 }, --bottom
-            { 3, 4, 1,  2 }, --
-            { 5, 6, 7,  3 }, --top
-            { 7, 8, 5,  4 }, --
-            { 5, 8, 1,  5 }, --front
-            { 4, 1, 8,  6 }, --
-            { 6, 5, 1,  7 }, --left
-            { 1, 2, 6,  8 }, --
-            { 2, 3, 7,  9 }, --back
-            { 7, 6, 2, 10 }, --
-            { 3, 4, 8, 11 }, --right
-            { 8, 7, 3, 12 }, --
-        },
-        normals = {
-            { x =  0, y =  0, z = -1 },
-            { x =  0, y =  0, z = -1 },
-            { x =  0, y =  0, z =  1 },
-            { x =  0, y =  0, z =  1 },
-            { x =  0, y = -1, z =  0 },
-            { x =  0, y = -1, z =  0 },
-            { x = -1, y =  0, z =  0 },
-            { x = -1, y =  0, z =  0 },
-            { x =  0, y =  1, z =  0 },
-            { x =  0, y =  1, z =  0 },
-            { x =  1, y =  0, z =  0 },
-            { x =  1, y =  0, z =  0 },
-        },
-        loc = { x = 20, y = 30, z = 0 },
-        rot = { x =  0, y =  0, z = 0 }
+    g_asset_library = parse_asset_library("pyramid,5,6,-5,-5,0,-5,5,0,5,5,0,5,-5,0,0,0,10,1,5,2,10,2,5,3,11,3,5,4,12,4,5,1,13,1,2,3,14,3,4,1,15,-1,0,0,0,1,0,1,0,0,0,-1,0,0,0,-1,0,0,-1,cube,8,12,-5,-5,0,-5,5,0,5,5,0,5,-5,0,-5,-5,10,-5,5,10,5,5,10,5,-5,10,1,2,3,1,3,4,1,2,5,6,7,3,7,8,5,4,5,8,1,5,4,1,8,6,6,5,1,7,1,2,6,8,2,3,7,9,7,6,2,10,3,4,8,11,8,7,3,12,0,0,-1,0,0,-1,0,0,1,0,0,1,0,-1,0,0,-1,0,-1,0,0,-1,0,0,0,1,0,0,1,0,1,0,0,1,0,0")
+    local pyramid1 = get_asset(g_asset_library, "pyramid").model
+    pyramid1.loc = { x = 0, y = 30, z = 0 }
+    pyramid1.rot = { x = 0, y =  0, z = 0 }
+
+    local pyramid2 = get_asset(g_asset_library, "pyramid").model
+    pyramid2.loc = { x = 10, y = 45, z = 0 }
+    pyramid2.rot = { x =  0, y =  0, z = 0 }
+
+    local cube = get_asset(g_asset_library, "cube").model
+    cube.loc = { x = 20, y = 30, z = 0 }
+    cube.rot = { x =  0, y =  0, z = 0 }
+
+    g_models = { pyramid1, pyramid2, cube }
+
+    g_camera = {
+        loc = { x = 0, y = -15, z =  15 },
+        rot = { x = 0, y =   0, z = .05 },
+        fov = 60 / 360,
+        near = 1,
+        far = 100
     }
-}
-
-g_camera = {
-    loc = { x = 0, y = -15, z =  15 },
-    rot = { x = 0, y =   0, z = .05 },
-    fov = 60 / 360,
-    near = 1,
-    far = 100
-}
+end
 
 function _update60()
     g_models[1].rot.z = (g_models[1].rot.z + 0.005) % 1
-    g_models[2].rot.z = (g_models[2].rot.z + 0.0025) % 1
+    g_models[3].rot.z = (g_models[3].rot.z + 0.0025) % 1
 
     local move_vector = { x = 0, y = 0, z = 0 }
 
@@ -486,6 +431,121 @@ function traverse(node, trifunc)
         trifunc(node.triangle)
         traverse(node.right, trifunc)
     end
+end
+
+-- stole this from stackoverflow
+-- https://stackoverflow.com/questions/640642/how-do-you-copy-a-lua-table-by-value
+function copy(obj, seen)
+    if type(obj) ~= 'table' then return obj end
+    if seen and seen[obj] then return seen[obj] end
+    local s = seen or {}
+    local res = setmetatable({}, getmetatable(obj))
+    s[obj] = res
+    for k, v in pairs(obj) do res[copy(k, s)] = copy(v, s) end
+    return res
+end
+
+-->8
+-- asset library parser
+-- this is intented to take some dead-simple
+-- non-huma-readable serialized models and store
+-- them into an "asset library" to be pulled
+-- from at runtime.
+
+-- the whole library is given as a comma-separted
+-- list. the first value is the name of the asset.
+-- after that is the vertex count, then the face
+-- count. the parser extpects the next set of
+-- values (3 x number of vertices) to be vertex
+-- data. It then expects the following set to be
+-- face data ((3 + 3 + 1) * number of faces, three
+-- indices, a normal vector, and a color).
+function parse_asset_library(library)
+    local index = 1
+    local length = #library
+
+    function next_token(allow_end, num_cast)
+        if allow_end == nil then allow_end = false end
+        if num_cast == nil then num_cast = true end
+        if index > length then
+            assert(allow_end, "Unexpected end of library")
+            return -1
+        end
+
+        local start = index
+        local endi = index
+
+        repeat endi += 1
+        until sub(library, endi, endi) == "," or endi > length
+
+        -- go past the comma
+        index = endi + 1
+        -- -1 to go back to the actual index
+        local token = sub(library, start, endi-1)
+        if num_cast then
+            -- make sure we explicitly cast this to a number
+            token = token + 0
+        end
+
+        return token
+    end
+
+    local library = {}
+    repeat
+        local name = next_token(true, false)
+        if name == -1 then
+            break
+        end
+
+        local asset = {
+            name = name,
+            model = {
+                vertices = {},
+                faces = {},
+                normals = {},
+                loc = { x = 0, y = 0, z = 0 },
+                rot = { x = 0, y = 0, z = 0 }
+            }
+        }
+
+        local verts = next_token()
+        local faces = next_token()
+
+        for vert=1, verts do
+            add(asset.model.vertices, {
+                x = next_token(),
+                y = next_token(),
+                z = next_token()
+            })
+        end
+
+        for face=1, faces do
+            add(asset.model.faces, {
+                next_token(),
+                next_token(),
+                next_token(),
+                next_token()
+            })
+        end
+
+        for face=1, faces do
+            add(asset.model.normals, {
+                x = next_token(),
+                y = next_token(),
+                z = next_token()
+            })
+        end
+
+        library[name] = asset
+    until false
+
+    return library
+end
+
+function get_asset(library, name)
+    local original = library[name]
+    assert(original != nil, "Asset " .. name .. " not found")
+    return copy(original)
 end
 
 __gfx__
