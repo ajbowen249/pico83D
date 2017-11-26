@@ -11,99 +11,103 @@ __lua__
 -- up being a great resource. link:
 -- https://www.scratchapixel.com/index.php?redirect
 
--- settings
-g_wireframe = false
-g_filled = true
--- end settings
+function _init()
+    -- settings
+    g_wireframe = false
+    g_filled = true
+    -- end settings
 
---constants
-c_screen_height = 128
-c_screen_width = 128
---end constants
+    --constants
+    c_screen_height = 128
+    c_screen_width = 128
+    --end constants
 
-g_models = {
-    {
-        vertices = {
-            { x = -5, y = -5, z =  0 },
-            { x = -5, y =  5, z =  0 },
-            { x =  5, y =  5, z =  0 },
-            { x =  5, y = -5, z =  0 },
-            { x =  0, y =  0, z = 10 },
-        },
-        faces = {
-            { 1, 5, 2, 10 },
-            { 2, 5, 3, 11 },
-            { 3, 5, 4, 12 },
-            { 4, 5, 1, 13 },
-            { 1, 2, 3, 14 },
-            { 3, 4, 1, 15 },
-        },
-        normals = {
-            { x = -1, y =  0, z =  0, },
-            { x =  0, y =  1, z =  0, },
-            { x =  1, y =  0, z =  0, },
-            { x =  0, y = -1, z =  0, },
-            { x =  0, y =  0, z = -1, },
-            { x =  0, y =  0, z = -1, },
-        },
-        loc = { x = 0, y = 30, z = 0 },
-        rot = { x = 0, y =  0, z = 0 }
-    },
-    {
-        vertices = {
-            { x = -5, y = -5, z =  0 },
-            { x = -5, y =  5, z =  0 },
-            { x =  5, y =  5, z =  0 },
-            { x =  5, y = -5, z =  0 },
-            { x = -5, y = -5, z = 10 },
-            { x = -5, y =  5, z = 10 },
-            { x =  5, y =  5, z = 10 },
-            { x =  5, y = -5, z = 10 },
-        },
-        faces = {
-            { 1, 2, 3,  1 }, --bottom
-            { 3, 4, 1,  2 }, --
-            { 5, 6, 7,  3 }, --top
-            { 7, 8, 5,  4 }, --
-            { 5, 8, 1,  5 }, --front
-            { 4, 1, 8,  6 }, --
-            { 6, 5, 1,  7 }, --left
-            { 1, 2, 6,  8 }, --
-            { 2, 3, 7,  9 }, --back
-            { 7, 6, 2, 10 }, --
-            { 3, 4, 8, 11 }, --right
-            { 8, 7, 3, 12 }, --
-        },
-        normals = {
-            { x =  0, y =  0, z = -1 },
-            { x =  0, y =  0, z = -1 },
-            { x =  0, y =  0, z =  1 },
-            { x =  0, y =  0, z =  1 },
-            { x =  0, y = -1, z =  0 },
-            { x =  0, y = -1, z =  0 },
-            { x = -1, y =  0, z =  0 },
-            { x = -1, y =  0, z =  0 },
-            { x =  0, y =  1, z =  0 },
-            { x =  0, y =  1, z =  0 },
-            { x =  1, y =  0, z =  0 },
-            { x =  1, y =  0, z =  0 },
-        },
-        loc = { x = 20, y = 30, z = 0 },
-        rot = { x =  0, y =  0, z = 0 }
+    g_asset_library = parse_asset_library("pyramid,5,6,-5,-5,0,-5,5,0,5,5,0,5,-5,0,0,0,10,1,5,2,10,2,5,3,11,3,5,4,12,4,5,1,13,1,2,3,14,3,4,1,15,-1,0,0,0,1,0,1,0,0,0,-1,0,0,0,-1,0,0,-1")
+    g_models = { g_asset_library["pyramid"].model }
+    --g_models = {
+    --    {
+    --        vertices = {
+    --            { x = -5, y = -5, z =  0 },
+    --            { x = -5, y =  5, z =  0 },
+    --            { x =  5, y =  5, z =  0 },
+    --            { x =  5, y = -5, z =  0 },
+    --            { x =  0, y =  0, z = 10 },
+    --        },
+    --        faces = {
+    --            { 1, 5, 2, 10 },
+    --            { 2, 5, 3, 11 },
+    --            { 3, 5, 4, 12 },
+    --            { 4, 5, 1, 13 },
+    --            { 1, 2, 3, 14 },
+    --            { 3, 4, 1, 15 },
+    --        },
+    --        normals = {
+    --            { x = -1, y =  0, z =  0, },
+    --            { x =  0, y =  1, z =  0, },
+    --            { x =  1, y =  0, z =  0, },
+    --            { x =  0, y = -1, z =  0, },
+    --            { x =  0, y =  0, z = -1, },
+    --            { x =  0, y =  0, z = -1, },
+    --        },
+    --        loc = { x = 0, y = 30, z = 0 },
+    --        rot = { x = 0, y =  0, z = 0 }
+    --    },
+    --    {
+    --        vertices = {
+    --            { x = -5, y = -5, z =  0 },
+    --            { x = -5, y =  5, z =  0 },
+    --            { x =  5, y =  5, z =  0 },
+    --            { x =  5, y = -5, z =  0 },
+    --            { x = -5, y = -5, z = 10 },
+    --            { x = -5, y =  5, z = 10 },
+    --            { x =  5, y =  5, z = 10 },
+    --            { x =  5, y = -5, z = 10 },
+    --        },
+    --        faces = {
+    --            { 1, 2, 3,  1 }, --bottom
+    --            { 3, 4, 1,  2 }, --
+    --            { 5, 6, 7,  3 }, --top
+    --            { 7, 8, 5,  4 }, --
+    --            { 5, 8, 1,  5 }, --front
+    --            { 4, 1, 8,  6 }, --
+    --            { 6, 5, 1,  7 }, --left
+    --            { 1, 2, 6,  8 }, --
+    --            { 2, 3, 7,  9 }, --back
+    --            { 7, 6, 2, 10 }, --
+    --            { 3, 4, 8, 11 }, --right
+    --            { 8, 7, 3, 12 }, --
+    --        },
+    --        normals = {
+    --            { x =  0, y =  0, z = -1 },
+    --            { x =  0, y =  0, z = -1 },
+    --            { x =  0, y =  0, z =  1 },
+    --            { x =  0, y =  0, z =  1 },
+    --            { x =  0, y = -1, z =  0 },
+    --            { x =  0, y = -1, z =  0 },
+    --            { x = -1, y =  0, z =  0 },
+    --            { x = -1, y =  0, z =  0 },
+    --            { x =  0, y =  1, z =  0 },
+    --            { x =  0, y =  1, z =  0 },
+    --            { x =  1, y =  0, z =  0 },
+    --            { x =  1, y =  0, z =  0 },
+    --        },
+    --        loc = { x = 20, y = 30, z = 0 },
+    --        rot = { x =  0, y =  0, z = 0 }
+    --    }
+    --}
+
+    g_camera = {
+        loc = { x = 0, y = -15, z =  15 },
+        rot = { x = 0, y =   0, z = .05 },
+        fov = 60 / 360,
+        near = 1,
+        far = 100
     }
-}
-
-g_camera = {
-    loc = { x = 0, y = -15, z =  15 },
-    rot = { x = 0, y =   0, z = .05 },
-    fov = 60 / 360,
-    near = 1,
-    far = 100
-}
+end
 
 function _update60()
     g_models[1].rot.z = (g_models[1].rot.z + 0.005) % 1
-    g_models[2].rot.z = (g_models[2].rot.z + 0.0025) % 1
+    --g_models[2].rot.z = (g_models[2].rot.z + 0.0025) % 1
 
     local move_vector = { x = 0, y = 0, z = 0 }
 
@@ -488,7 +492,7 @@ function traverse(node, trifunc)
     end
 end
 
--->
+-->8
 -- asset library parser
 -- this is intented to take some dead-simple
 -- non-huma-readable serialized models and store
@@ -509,8 +513,8 @@ function parse_asset_library(library)
 
     -- whaddaya know...it's cstdlib's strtok()
     function next_token(allow_end, num_cast)
-        allow_end = allow_end or false
-        num_cast = num_cast or true
+        if allow_end == nil then allow_end = false end
+        if num_cast == nil then num_cast = true end
         if index > length then
             assert(allow_end, "Unexpected end of library")
             return -1
@@ -556,7 +560,7 @@ function parse_asset_library(library)
         local faces = next_token()
 
         for vert=1, verts do
-            add(model.vertices, {
+            add(asset.model.vertices, {
                 x = next_token(),
                 y = next_token(),
                 z = next_token()
@@ -564,7 +568,7 @@ function parse_asset_library(library)
         end
 
         for face=1, faces do
-            add(model.faces, {
+            add(asset.model.faces, {
                 next_token(),
                 next_token(),
                 next_token(),
@@ -573,7 +577,7 @@ function parse_asset_library(library)
         end
 
         for face=1, faces do
-            add(model.normals, {
+            add(asset.model.normals, {
                 x = next_token(),
                 y = next_token(),
                 z = next_token()
