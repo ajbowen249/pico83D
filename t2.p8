@@ -503,13 +503,17 @@ end
 -- data. It then expects the following set to be
 -- face data ((3 + 3 + 1) * number of faces, three
 -- indices, a normal vector, and a color).
-function tokenize(library, visitor)
+function parse_asset_library(library)
     local index = 1
     local length = #library
 
-    repeat
+    -- whaddaya know...it's cstdlib's strtok()
+    function next_token(allow_end, num_cast)
+        allow_end = allow_end or false
+        num_cast = num_cast or true
         if index > length then
-            return
+            assert(allow_end, "Unexpected end of library")
+            return -1
         end
 
         local start = index
@@ -521,15 +525,65 @@ function tokenize(library, visitor)
         -- go past the comma
         index = endi + 1
         -- -1 to go back to the actual index
-        visitor(sub(library, start, endi-1))
-    until false
-end
+        local token = sub(library, start, endi-1)
+        if num_cast then
+            -- make sure we explicitly cast this to a number
+            token = token + 0
+        end
 
-function parse_asset_library(library)
-    tokenize(library, function(token)
-        -- temporary
-        print(token)
-    end)
+        return token
+    end
+
+    local library = {}
+    repeat
+        local name = next_token(true, false)
+        if name == -1 then
+            break
+        end
+
+        local asset = {
+            name = name,
+            model = {
+                vertices = {},
+                faces = {},
+                normals = {},
+                loc = { x = 0, y = 0, z = 0 },
+                rot = { x = 0, y = 0, z = 0 }
+            }
+        }
+
+        local verts = next_token()
+        local faces = next_token()
+
+        for vert=1, verts do
+            add(model.vertices, {
+                x = next_token(),
+                y = next_token(),
+                z = next_token()
+            })
+        end
+
+        for face=1, faces do
+            add(model.faces, {
+                next_token(),
+                next_token(),
+                next_token(),
+                next_token()
+            })
+        end
+
+        for face=1, faces do
+            add(model.normals, {
+                x = next_token(),
+                y = next_token(),
+                z = next_token()
+            })
+        end
+
+        library[name] = asset
+    until false
+
+    return library
 end
 
 __gfx__
