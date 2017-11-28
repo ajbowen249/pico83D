@@ -9,9 +9,12 @@ bl_info = {
 }
 
 import bpy
+import bmesh
 import os
 from bpy.props import *
 from bpy_extras.io_utils import ExportHelper
+
+separator = ','
 
 class ExportToPico83D(bpy.types.Operator, ExportHelper):
     '''Export Pico 8 3D'''
@@ -26,8 +29,63 @@ class ExportToPico83D(bpy.types.Operator, ExportHelper):
         filepath = self.filepath
         filepath = bpy.path.ensure_ext(filepath, self.filename_ext)
 
+        # make sure we're in object mode
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        # gather meshes
+        meshes = [obj.data for obj in bpy.context.scene.objects if obj.type == 'MESH' and (obj.select or not props.just_selected)]
+
         file = open(filepath, 'w')
-        file.write('some placeholder text')
+
+        def write_num(num):
+            file.write(str(round(num, 3)))
+
+        def write_sep():
+            file.write(separator)
+
+        for mesh in meshes:
+            # need to make sure we're working with triangles
+            bm = bmesh.new()
+            bm.from_mesh(mesh)
+            bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method=0, ngon_method=0)
+            trimesh = bpy.data.meshes.new('%s_2' % mesh.name)
+            bm.to_mesh(trimesh)
+            bm.free()
+
+            file.write(mesh.name)
+            write_sep()
+            write_num(len(trimesh.vertices))
+            write_sep()
+            write_num(len(trimesh.polygons))
+            write_sep()
+
+            # vertex values
+            for vertex in trimesh.vertices:
+                write_num(vertex.co.x)
+                write_sep()
+                write_num(vertex.co.y)
+                write_sep()
+                write_num(vertex.co.z)
+                write_sep()
+
+             # print out face indices
+            for tri in trimesh.polygons:
+                assert(len(tri.vertices) == 3)
+                for index in tri.vertices:
+                    write_num(index + 1) # Lua indieces are 1-based
+                    write_sep()
+                # todo, material
+                file.write('12')
+                write_sep()
+
+                # normal
+                write_num(tri.normal.x)
+                write_sep()
+                write_num(tri.normal.y)
+                write_sep()
+                write_num(tri.normal.z)
+                write_sep()
+
         file.flush()
         file.close()
 
