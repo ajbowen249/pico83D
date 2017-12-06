@@ -68,7 +68,7 @@ class ExportToPico83D(bpy.types.Operator, ExportHelper):
                 write_num(vertex.co.z)
                 write_sep()
 
-             # print out face indices
+             # face indices
             for tri in trimesh.polygons:
                 assert(len(tri.vertices) == 3)
                 for index in tri.vertices:
@@ -78,7 +78,8 @@ class ExportToPico83D(bpy.types.Operator, ExportHelper):
                 file.write('12')
                 write_sep()
 
-                # normal
+            # normals
+            for tri in trimesh.polygons:
                 write_num(tri.normal.x)
                 write_sep()
                 write_num(tri.normal.y)
