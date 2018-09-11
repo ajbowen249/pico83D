@@ -213,12 +213,13 @@ function draw_wire_polygon(col, v1, v2, v3)
     line(v3.x, v3.y, v1.x, v1.y, col)
 end
 
-function draw_spans(mainx, offx, starty, endy, mainstepx, offstepx, color, minx, maxx, drawbottom)
+function draw_spans(mainx, offx, starty, endy, mainstepx, offstepx, tcolor, minx, maxx, drawbottom)
     assert(endy >= starty)
     starty = flr(starty)
     endy = flr(endy)
     if not drawbottom then endy -= 1 end
     if endy < starty then endy = starty end
+    color(tcolor)
 
     for row = starty, endy do
         if row >= c_screen_height then
@@ -241,7 +242,7 @@ function draw_spans(mainx, offx, starty, endy, mainstepx, offstepx, color, minx,
             local right = loffx < maxx and loffx or maxx
             right = right < c_screen_width and right or c_screen_width
 
-            rectfill(flr(left), row, flr(right), row, color)
+            rectfill(flr(left), row, flr(right), row)
         end
         mainx += mainstepx
         offx += offstepx
@@ -305,6 +306,76 @@ function draw_triangle(color, v1, v2, v3)
     end
 end
 
+--@catatafish
+-- expects an array in the form { x0, y0, x1, y1, x2, y2, color }
+function gfx_draw(triangle)
+    --for n=1,tri_count do
+    -- local vbuf = vertexbuffer[n]
+    local v0x, v0y, v1x, v1y, v2x, v2y, ps = triangle.v1.x, triangle.v1.y, triangle.v2.x, triangle.v2.y, triangle.v3.x, triangle.v3.y
+
+    if v1y<v0y then
+        v0x,v1x = v1x,v0x
+        v0y,v1y = v1y,v0y
+    end
+
+    if v2y<v0y then
+        v0x,v2x = v2x,v0x
+        v0y,v2y = v2y,v0y
+    end
+
+    if v2y<v1y then
+        v1x,v2x = v2x,v1x
+        v1y,v2y = v2y,v1y
+    end
+
+    color(triangle.color)
+    if v0y == v1y then -- flat top
+        rasterizetri_top(v0x,v0y,v1x,v2x,v2y)
+    elseif v1y == v2y then -- flat bottom
+        rasterizetri_bottom(v0x,v0y,v1x,v2x,v2y)
+    else -- general case
+        local newx = v0x + ((v1y-v0y)*(v2x-v0x)/(v2y-v0y))
+        rasterizetri_bottom(v0x,v0y,newx,v1x,v1y) 
+        rasterizetri_top(v1x,v1y,newx,v2x,v2y)
+    end -- triangle cases
+    --end -- triangle loop
+
+end
+
+function rasterizetri_top(v0x,v0y, v1x, v2x,v2y)
+    if (v1x<v0x) v0x, v1x = v1x, v0x
+        local height=v2y-v0y
+        local dx_left, dx_right = (v2x-v0x)/height, (v2x-v1x)/height
+    if v0y<0 then
+        v0x-=dx_left*v0y
+        v1x-=dx_right*v0y
+        v0y=0
+    end
+    if (v2y>128) v2y=128
+        for y=v0y,v2y do
+            rectfill(v0x,y,v1x,y)
+            v0x+=dx_left
+            v1x+=dx_right
+    end
+end
+
+function rasterizetri_bottom(v0x,v0y, v1x,v2x,v2y)
+    if (v2x<v1x) v1x, v2x = v2x, v1x
+        local height=v2y-v0y
+        local dx_left, dx_right, xend = (v1x-v0x)/height, (v2x-v0x)/height, v0x
+        if v0y<0 then
+            v0x -=dx_left*v0y
+            xend-=dx_right*v0y
+            v0y=0
+        end
+        if (v2y>128) v2y=128
+            for y=v0y,v2y do
+                rectfill(v0x,y,xend,y)
+                v0x+=dx_left
+                xend+=dx_right
+    end
+end
+
 function draw3d()
     local head_node = nil
     project(g_camera, g_models, function(triangle)
@@ -323,7 +394,9 @@ function draw3d()
 
     if g_filled then
         traverse(head_node, function(triangle)
-            draw_triangle(triangle.color, triangle.v1, triangle.v2, triangle.v3)
+            --(triangle.color, triangle.v1, triangle.v2, triangle.v3)
+            --  x0, y0, x1, y1, x2, y2, color
+            gfx_draw(triangle)
         end)
     end
 
