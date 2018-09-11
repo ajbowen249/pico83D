@@ -86,6 +86,7 @@ end
 function _draw()
     cls()
     draw3d()
+    print(stat(1), 1, 1)
 end
 
 -->8
@@ -212,26 +213,6 @@ function draw_wire_polygon(col, v1, v2, v3)
     line(v3.x, v3.y, v1.x, v1.y, col)
 end
 
-function draw_span(mainx, offx, row, minx, maxx, color)
-    if offx < mainx then
-        -- "main" and "off" lose their meaning here if we
-        -- need to swap. oh, well.
-        local temp = offx
-        offx = mainx
-        mainx = temp
-    end
-
-    local left = mainx > minx and mainx or minx
-    left = left >= 0 and left or 0
-
-    local right = offx < maxx and offx or maxx
-    right = right < c_screen_width and right or c_screen_width
-
-    for x = flr(left), flr(right) do
-        pset(x, row, color)
-    end
-end
-
 function draw_spans(mainx, offx, starty, endy, mainstepx, offstepx, color, minx, maxx, drawbottom)
     assert(endy >= starty)
     starty = flr(starty)
@@ -244,7 +225,23 @@ function draw_spans(mainx, offx, starty, endy, mainstepx, offstepx, color, minx,
             break
         end
         if row >= 0 then
-            draw_span(mainx, offx, row, minx, maxx, color)
+            local loffx = offx
+            local lmainx = mainx
+            if loffx < lmainx then
+                -- "main" and "off" lose their meaning here if we
+                -- need to swap. oh, well.
+                local temp = loffx
+                loffx = lmainx
+                lmainx = temp
+            end
+
+            local left = lmainx > minx and lmainx or minx
+            left = left >= 0 and left or 0
+
+            local right = loffx < maxx and loffx or maxx
+            right = right < c_screen_width and right or c_screen_width
+
+            rectfill(flr(left), row, flr(right), row, color)
         end
         mainx += mainstepx
         offx += offstepx
